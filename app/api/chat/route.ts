@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+export const dynamic = "force-dynamic";
 import { model } from "@/lib/gemini";
 import { getRelevantContext } from "@/lib/rag";
 import { supabaseAdmin } from "@/lib/supabase";
