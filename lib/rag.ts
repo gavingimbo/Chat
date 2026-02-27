@@ -10,7 +10,7 @@ export async function getRelevantContext(query: string, agentSlug: string, limit
         // Call Supabase function for vector match
         const { data: matches, error } = await supabaseAdmin.rpc("match_kb_entries", {
             query_embedding: queryEmbedding,
-            match_threshold: 0.5,
+            match_threshold: 0.3,
             match_count: limit,
             p_agent_slug: agentSlug
         });

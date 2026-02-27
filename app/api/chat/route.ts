@@ -28,13 +28,18 @@ export async function POST(req: NextRequest) {
 
         const prompt = `${agent?.instruction || "You are a helpful assistant."}
         
-Context from knowledge base:
-${context}
+=== KNOWLEDGE BASE CONTEXT ===
+${context || "No specific documents found for this query. Use your existing knowledge while maintaining professional tone."}
+==============================
 
-Here is the conversation history:
+CONVERSATION HISTORY:
 ${formattedHistory}
 
-Please provide an expert answer based on the context and conversation history. If the query is related to the hotel sector or Cinnamon Life, ensure the tone is professional and context-aware. Remember to include citations if using knowledge base context.`;
+INSTRUCTION: 
+Provide a detailed, expert response grounded in the provided Knowledge Base Context. 
+If the information is in the context, prioritize it and mention the source (e.g. "[Source: Document name]"). 
+Always maintain the persona and tone defined in your system instructions. 
+If the query is outside the scope of Cinnamon Intelligence, answer politely as a brand representative.`;
 
         const result = await model.generateContentStream(prompt);
 
