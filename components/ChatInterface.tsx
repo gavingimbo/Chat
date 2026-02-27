@@ -27,9 +27,9 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
-import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import { toast } from "sonner";
 
 interface Message {
     role: "user" | "assistant";
@@ -88,8 +88,6 @@ export default function ChatInterface() {
     const [agentInstruction, setAgentInstruction] = useState("");
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
-    const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Document Upload State
     const [isUploading, setIsUploading] = useState(false);
@@ -121,15 +119,11 @@ export default function ChatInterface() {
     const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: ShieldCheck };
 
     const showFeedback = (msg: string) => {
-        setSavedFeedback(msg);
-        setErrorMessage(null);
-        setTimeout(() => setSavedFeedback(null), 3000);
+        toast.success(msg);
     };
 
     const showError = (msg: string) => {
-        setErrorMessage(msg);
-        setSavedFeedback(null);
-        setTimeout(() => setErrorMessage(null), 6000);
+        toast.error(msg);
     };
 
     const fetchAgents = async () => {
@@ -290,7 +284,6 @@ export default function ChatInterface() {
         }
 
         setIsAddingEntry(true);
-        setErrorMessage(null);
 
         try {
             const res = await fetch("/api/kb", {
@@ -328,7 +321,6 @@ export default function ChatInterface() {
         if (!file || !selectedAgentForSettings) return;
 
         setIsUploading(true);
-        setErrorMessage(null);
 
         try {
             const formData = new FormData();
@@ -774,27 +766,7 @@ export default function ChatInterface() {
                 )}
             </main>
 
-            {/* Feedback & Error Toasts */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-3 min-w-[320px] max-w-[90vw]">
-                {savedFeedback && (
-                    <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        <Alert variant="success" className="shadow-2xl border-emerald-500/30 bg-white/90 backdrop-blur-md">
-                            <Check className="w-4 h-4" />
-                            <AlertTitle>Success</AlertTitle>
-                            <AlertDescription>{savedFeedback}</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
-                {errorMessage && (
-                    <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        <Alert variant="destructive" className="shadow-2xl border-red-500/30 bg-white/90 backdrop-blur-md">
-                            <X className="w-4 h-4" />
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>{errorMessage}</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
-            </div>
+
 
             {/* Settings Modal */}
             {showSettings && (
