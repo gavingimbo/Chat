@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
 
         // Get context from documents using vector search
         const context = await getRelevantContext(lastMessage, agentSlug);
+        console.log(`[RAG Debug] Agent: ${agentSlug}, Query: "${lastMessage.substring(0, 80)}", Context length: ${context.length}, Preview: "${context.substring(0, 200)}"`);
 
         const formattedHistory = messages.map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
 

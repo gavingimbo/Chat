@@ -296,7 +296,7 @@ export default function ChatInterface() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     action: "create_entry",
-                    section_id: expandedSectionId,
+                    sectionId: expandedSectionId,
                     content: newEntryContent,
                     source: newEntrySource || "Manual Entry",
                 }),

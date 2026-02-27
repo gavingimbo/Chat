@@ -122,12 +122,15 @@ export async function POST(req: NextRequest) {
             const { sectionId, content, source } = body;
             if (!sectionId || !content) return NextResponse.json({ error: "sectionId and content required" }, { status: 400 });
 
-            // Generate embedding for manual entry
-            let embedding = null;
+            // Generate embedding for manual entry — MUST succeed
+            let embedding;
             try {
                 embedding = await generateEmbedding(content);
-            } catch (embErr) {
+            } catch (embErr: any) {
                 console.error("Failed to embed manual entry:", embErr);
+                return NextResponse.json({
+                    error: `Embedding generation failed: ${embErr.message || "Unknown error"}. Entry was NOT saved.`
+                }, { status: 500 });
             }
 
             const { data, error } = await supabaseAdmin
