@@ -100,6 +100,7 @@ export default function ChatInterface() {
     const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
     const [sectionEntries, setSectionEntries] = useState<KbEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(false);
+    const [isAddingEntry, setIsAddingEntry] = useState(false);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [newEntrySource, setNewEntrySource] = useState("");
 
@@ -266,7 +267,14 @@ export default function ChatInterface() {
     };
 
     const handleAddEntry = async () => {
-        if (!newEntryContent.trim() || !expandedSectionId) return;
+        if (!newEntryContent.trim()) return;
+        if (!expandedSectionId) {
+            setErrorMessage("No section selected");
+            return;
+        }
+
+        setIsAddingEntry(true);
+        setErrorMessage(null);
 
         try {
             const res = await fetch("/api/kb", {
@@ -286,10 +294,15 @@ export default function ChatInterface() {
                 fetchEntries(expandedSectionId);
                 if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
                 showFeedback("Entry added");
+            } else {
+                const data = await res.json();
+                setErrorMessage(data.error || "Failed to add entry");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error adding entry:", err);
-            showFeedback("Failed to add entry");
+            setErrorMessage("Network error: " + (err.message || "Unknown error"));
+        } finally {
+            setIsAddingEntry(false);
         }
     };
 
@@ -945,10 +958,10 @@ export default function ChatInterface() {
                                                                         />
                                                                         <Button
                                                                             onClick={handleAddEntry}
-                                                                            disabled={!newEntryContent.trim()}
+                                                                            disabled={!newEntryContent.trim() || isAddingEntry}
                                                                             className="bg-zinc-900 text-white h-9 rounded-lg px-5 text-[12px] font-bold shrink-0 whitespace-nowrap"
                                                                         >
-                                                                            <Plus className="w-3.5 h-3.5 mr-1.5" />
+                                                                            {isAddingEntry ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
                                                                             Add Entry
                                                                         </Button>
                                                                     </div>

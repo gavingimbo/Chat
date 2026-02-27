@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
-import { model } from "@/lib/gemini";
+import { genAI, COMMON_INSTRUCTIONS } from "@/lib/gemini";
 import { getRelevantContext } from "@/lib/rag";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -26,9 +26,13 @@ export async function POST(req: NextRequest) {
 
         const formattedHistory = messages.map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
 
-        const prompt = `${agent?.instruction || "You are a helpful assistant."}
-        
-=== KNOWLEDGE BASE CONTEXT ===
+        // Initialize model with dynamic system instructions for this specific agent
+        const dynamicModel = genAI.getGenerativeModel({
+            model: "models/gemini-flash-latest",
+            systemInstruction: `${agent?.instruction || "You are a helpful assistant."}\n${COMMON_INSTRUCTIONS}`,
+        });
+
+        const prompt = `=== KNOWLEDGE BASE CONTEXT ===
 ${context || "No specific documents found for this query. Use your existing knowledge while maintaining professional tone."}
 ==============================
 
@@ -41,7 +45,7 @@ If the information is in the context, prioritize it and mention the source (e.g.
 Always maintain the persona and tone defined in your system instructions. 
 If the query is outside the scope of Cinnamon Intelligence, answer politely as a brand representative.`;
 
-        const result = await model.generateContentStream(prompt);
+        const result = await dynamicModel.generateContentStream(prompt);
 
         const encoder = new TextEncoder();
         const readableStream = new ReadableStream({
