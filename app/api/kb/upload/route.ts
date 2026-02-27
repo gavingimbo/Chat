@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateEmbedding } from "@/lib/gemini";
 
 // We force dynamic so it doesn't try to statically generate
 export const dynamic = "force-dynamic";
 
 // Increase max duration for Vercel Hobby tier (max is 60s, but we'll try to keep it under)
 export const maxDuration = 60;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const embeddingModel = genAI.getGenerativeModel({ model: "models/gemini-embedding-001" });
 
 // Simple text chunker (~500 words per chunk, keeping paragraphs whole if possible)
 function chunkText(text: string, maxWords: number = 500): string[] {
@@ -113,8 +110,7 @@ export async function POST(req: NextRequest) {
 
             try {
                 // Generate Embedding
-                const result = await embeddingModel.embedContent(chunkContent);
-                const queryEmbedding = result.embedding.values;
+                const queryEmbedding = await generateEmbedding(chunkContent);
 
                 // Insert into DB
                 const { error: insertError } = await supabaseAdmin

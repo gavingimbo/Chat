@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateEmbedding } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const embeddingModel = genAI.getGenerativeModel({ model: "models/gemini-embedding-001" });
 
 // GET: Fetch KB sections with entry counts for an agent
 export async function GET(req: NextRequest) {
@@ -104,8 +101,7 @@ export async function POST(req: NextRequest) {
             // If description is provided, create an initial entry for it so it's searchable
             if (description && description.trim()) {
                 try {
-                    const embResult = await embeddingModel.embedContent(description);
-                    const embedding = embResult.embedding.values;
+                    const embedding = await generateEmbedding(description);
                     await supabaseAdmin
                         .from("kb_entries")
                         .insert([{
@@ -129,8 +125,7 @@ export async function POST(req: NextRequest) {
             // Generate embedding for manual entry
             let embedding = null;
             try {
-                const embResult = await embeddingModel.embedContent(content);
-                embedding = embResult.embedding.values;
+                embedding = await generateEmbedding(content);
             } catch (embErr) {
                 console.error("Failed to embed manual entry:", embErr);
             }
