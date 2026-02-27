@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 // GET: Fetch KB sections with entry counts for an agent
 export async function GET(req: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json(
+                { error: "Configuration Error: SUPABASE_SERVICE_ROLE_KEY environment variable is missing on the server. Please add it to your Vercel project settings to enable configuration saves." },
+                { status: 500 }
+            );
+        }
+
         const agentSlug = req.nextUrl.searchParams.get("agentSlug");
         if (!agentSlug) return NextResponse.json({ error: "agentSlug required" }, { status: 400 });
 
@@ -60,6 +67,13 @@ export async function GET(req: NextRequest) {
 // POST: Create section, create entry, or update agent instruction
 export async function POST(req: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json(
+                { error: "Configuration Error: SUPABASE_SERVICE_ROLE_KEY environment variable is missing on the server. Please add it to your Vercel project settings." },
+                { status: 500 }
+            );
+        }
+
         const body = await req.json();
         const { action } = body;
 
@@ -135,6 +149,13 @@ export async function POST(req: NextRequest) {
 // DELETE: Remove a section or entry
 export async function DELETE(req: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json(
+                { error: "Configuration Error: SUPABASE_SERVICE_ROLE_KEY environment variable is missing on the server. Please add it to your Vercel project settings." },
+                { status: 500 }
+            );
+        }
+
         const body = await req.json();
         const { action } = body;
 

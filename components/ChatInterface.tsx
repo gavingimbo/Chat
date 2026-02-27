@@ -19,6 +19,8 @@ import {
     Trash2,
     FileText,
     Check,
+    Loader2,
+    Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -82,6 +84,10 @@ export default function ChatInterface() {
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
+
+    // Document Upload State
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // KB Entry State
     const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
@@ -253,6 +259,39 @@ export default function ChatInterface() {
             }
         } catch (err) {
             console.error("Error adding entry:", err);
+            showFeedback("Failed to add entry");
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedAgentForSettings) return;
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("agentSlug", selectedAgentForSettings);
+
+        try {
+            const res = await fetch("/api/kb/upload", {
+                method: "POST",
+                body: formData, // fetch will set the correct multipart/form-data boundary automatically
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                showFeedback(`Processed ${file.name} into ${data.chunksFound} chunks.`);
+                fetchKbSections(selectedAgentForSettings);
+            } else {
+                throw new Error(data.error || "Upload failed");
+            }
+        } catch (err: any) {
+            console.error("Error uploading document:", err);
+            showFeedback(err.message || "Failed to upload document");
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
 
@@ -498,7 +537,7 @@ export default function ChatInterface() {
                                                 {message.role === "assistant" ? <activeAgent.icon className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
                                             </div>
                                             <span className="text-[12px] font-bold tracking-tight text-zinc-400 uppercase">
-                                                {message.role === "user" ? "Client" : activeAgent.name}
+                                                {message.role === "user" ? "You" : activeAgent.name}
                                             </span>
                                         </div>
 
@@ -571,11 +610,6 @@ export default function ChatInterface() {
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="mt-4 flex items-center justify-center gap-4 text-[10px] font-bold text-zinc-300 uppercase tracking-[0.2em]">
-                                    <span>CL Intelligence</span>
-                                    <div className="w-1 h-1 rounded-full bg-zinc-200" />
-                                    <span>Ground Only</span>
-                                </div>
                             </form>
                         </div>
                     </>
@@ -596,7 +630,7 @@ export default function ChatInterface() {
                                 <div className="pt-4">
                                     <Button
                                         onClick={() => setShowSettings(true)}
-                                        className="h-11 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-2xl px-6 font-bold text-[13px] shadow-sm transition-all"
+                                        className="h-11 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-2xl px-6 font-bold text-[13px] shadow-sm transition-all whitespace-nowrap"
                                     >
                                         <Settings className="w-4 h-4 mr-2" />
                                         Manage Intelligence
@@ -756,10 +790,38 @@ export default function ChatInterface() {
                                                     placeholder="Section title (e.g. Guest Data Policy)"
                                                     className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
                                                 />
-                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0">
+                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap">
                                                     <Plus className="w-4 h-4 mr-1.5" />
                                                     Add Section
                                                 </Button>
+                                            </div>
+
+                                            <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 group transition-all hover:bg-zinc-100 hover:border-zinc-300 border-dashed">
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf,.txt,.md"
+                                                    disabled={isUploading}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                />
+                                                <div className="flex flex-col items-center justify-center p-8 text-center pointer-events-none">
+                                                    {isUploading ? (
+                                                        <>
+                                                            <Loader2 className="w-8 h-8 text-zinc-400 mb-3 animate-spin" />
+                                                            <p className="text-[14px] font-bold text-zinc-800">Processing Document...</p>
+                                                            <p className="text-[12px] text-zinc-500 mt-1">Chunking and embedding content</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 flex items-center justify-center mb-4 shadow-sm group-hover:scale-105 transition-transform">
+                                                                <Upload className="w-5 h-5 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
+                                                            </div>
+                                                            <p className="text-[14px] font-bold text-zinc-800">Upload a Document (.pdf, .txt, .md)</p>
+                                                            <p className="text-[13px] text-zinc-500 mt-1">We'll automatically extract, process, and chunk the data.</p>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="space-y-3">
@@ -818,7 +880,7 @@ export default function ChatInterface() {
                                                                         <Button
                                                                             onClick={handleAddEntry}
                                                                             disabled={!newEntryContent.trim()}
-                                                                            className="bg-zinc-900 text-white h-9 rounded-lg px-5 text-[12px] font-bold shrink-0"
+                                                                            className="bg-zinc-900 text-white h-9 rounded-lg px-5 text-[12px] font-bold shrink-0 whitespace-nowrap"
                                                                         >
                                                                             <Plus className="w-3.5 h-3.5 mr-1.5" />
                                                                             Add Entry

@@ -24,14 +24,17 @@ export async function POST(req: NextRequest) {
         // Get context from documents using vector search
         const context = await getRelevantContext(lastMessage, agentSlug);
 
+        const formattedHistory = messages.map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
+
         const prompt = `${agent?.instruction || "You are a helpful assistant."}
         
 Context from knowledge base:
 ${context}
 
-User Query: ${lastMessage}
+Here is the conversation history:
+${formattedHistory}
 
-Please provide an expert answer based on the context. If the query is related to the hotel sector or Cinnamon Life, ensure the tone is professional and context-aware. Remember to include citations if using knowledge base context.`;
+Please provide an expert answer based on the context and conversation history. If the query is related to the hotel sector or Cinnamon Life, ensure the tone is professional and context-aware. Remember to include citations if using knowledge base context.`;
 
         const result = await model.generateContentStream(prompt);
 
