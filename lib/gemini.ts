@@ -21,7 +21,7 @@ export const model = genAI.getGenerativeModel({
 });
 
 export const embeddingModel = genAI.getGenerativeModel({
-  model: "text-embedding-004"
+  model: "embedding-001"
 });
 
 // Helper for consistency
