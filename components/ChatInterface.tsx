@@ -34,8 +34,8 @@ interface Agent {
 
 const agents: Agent[] = [
     { id: "privacy", name: "Privacy Advisor", description: "GDPR & PDPA guidance", icon: ShieldCheck, active: true },
-    { id: "it", name: "IT Operations", description: "Systems & infra", icon: LayoutDashboard, active: false },
-    { id: "ops", name: "Hotel Operations", description: "LOB management", icon: Building2, active: false },
+    { id: "it", name: "Simphony", description: "Systems & infra", icon: LayoutDashboard, active: false },
+    { id: "ops", name: "IT Operations", description: "LOB management", icon: Building2, active: false },
 ];
 
 export default function ChatInterface() {
