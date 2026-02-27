@@ -40,8 +40,9 @@ CONVERSATION HISTORY:
 ${formattedHistory}
 
 INSTRUCTION: 
-Provide a detailed, expert response grounded in the provided Knowledge Base Context. 
-If the information is in the context, prioritize it and mention the source (e.g. "[Source: Document name]"). 
+Provide a detailed, expert response. 
+STRICT GROUNDING: You MUST strictly extract specific data (like IP addresses, login URLs, port numbers, or system IDs) from the provided Knowledge Base Context. If a direct answer (e.g. an IP address) exists in the context, provide it prominently.
+If information is in the context, prioritize it and mention the source (e.g. "[Source: Document name]"). 
 Always maintain the persona and tone defined in your system instructions. 
 If the query is outside the scope of Cinnamon Intelligence, answer politely as a brand representative.`;
 

@@ -1,11 +1,10 @@
-import { embeddingModel } from "./gemini";
+import { generateEmbedding } from "./gemini";
 import { supabaseAdmin } from "./supabase";
 
 export async function getRelevantContext(query: string, agentSlug: string, limit: number = 5): Promise<string> {
     try {
-        // Generate embedding for the query
-        const result = await embeddingModel.embedContent(query);
-        const queryEmbedding = result.embedding.values;
+        // Generate embedding for the query using the 768d model
+        const queryEmbedding = await generateEmbedding(query);
 
         // Call Supabase function for vector match
         const { data: matches, error } = await supabaseAdmin.rpc("match_kb_entries", {
