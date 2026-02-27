@@ -12,8 +12,13 @@ import {
     Menu,
     X,
     ChevronRight,
+    ChevronDown,
     Settings,
     User,
+    Plus,
+    Trash2,
+    FileText,
+    Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -26,12 +31,26 @@ interface Message {
 }
 
 interface Agent {
-    id: string; // Maps to slug in DB
+    id: string;
     name: string;
     description: string;
     icon: any;
     active: boolean;
     instruction?: string;
+}
+
+interface KbSection {
+    id: string;
+    title: string;
+    created_at: string;
+    entry_count: number;
+}
+
+interface KbEntry {
+    id: string;
+    content: string;
+    source: string;
+    created_at: string;
 }
 
 const iconMap: Record<string, any> = {
@@ -57,13 +76,26 @@ export default function ChatInterface() {
 
     // Settings / KB State
     const [showSettings, setShowSettings] = useState(false);
-    const [kbSections, setKbSections] = useState<any[]>([]);
+    const [kbSections, setKbSections] = useState<KbSection[]>([]);
     const [newKbTitle, setNewKbTitle] = useState("");
     const [agentInstruction, setAgentInstruction] = useState("");
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
+
+    // KB Entry State
+    const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
+    const [sectionEntries, setSectionEntries] = useState<KbEntry[]>([]);
+    const [isLoadingEntries, setIsLoadingEntries] = useState(false);
+    const [newEntryContent, setNewEntryContent] = useState("");
+    const [newEntrySource, setNewEntrySource] = useState("");
 
     const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: ShieldCheck };
+
+    const showFeedback = (msg: string) => {
+        setSavedFeedback(msg);
+        setTimeout(() => setSavedFeedback(null), 2500);
+    };
 
     const fetchAgents = async () => {
         try {
@@ -93,19 +125,35 @@ export default function ChatInterface() {
     };
 
     const fetchKbSections = async (agentSlug: string) => {
-        const { data: agent } = await supabase.from("agents").select("id, instruction").eq("slug", agentSlug).single();
-        if (!agent) return;
+        try {
+            const res = await fetch(`/api/kb?agentSlug=${agentSlug}`);
+            const data = await res.json();
+            if (res.ok) {
+                setAgentInstruction(data.instruction || "");
+                setKbSections(data.sections || []);
+            }
+        } catch (err) {
+            console.error("Error fetching KB sections:", err);
+        }
+    };
 
-        setAgentInstruction(agent.instruction || "");
-
-        const { data, error } = await supabase
-            .from("kb_sections")
-            .select("*")
-            .eq("agent_id", agent.id)
-            .order("created_at", { ascending: true });
-
-        if (error) console.error(error);
-        else setKbSections(data || []);
+    const fetchEntries = async (sectionId: string) => {
+        setIsLoadingEntries(true);
+        try {
+            const res = await fetch("/api/kb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "get_entries", sectionId }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setSectionEntries(data.entries || []);
+            }
+        } catch (err) {
+            console.error("Error fetching entries:", err);
+        } finally {
+            setIsLoadingEntries(false);
+        }
     };
 
     useEffect(() => {
@@ -122,8 +170,6 @@ export default function ChatInterface() {
         const agent = agents.find((a) => a.id === agentId);
         if (!agent) return;
 
-        // If inactive, we still allow selection but it might be "coming soon" in UI
-        // But for this request, lets allow starting chat if they are the target agents
         setActiveAgentId(agentId);
         setMessages([
             {
@@ -139,16 +185,94 @@ export default function ChatInterface() {
     const handleAddKbSection = async () => {
         if (!newKbTitle.trim() || !selectedAgentForSettings) return;
 
-        const { data: agent } = await supabase.from("agents").select("id").eq("slug", selectedAgentForSettings).single();
-        if (!agent) return;
+        try {
+            const res = await fetch("/api/kb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "create_section",
+                    agentSlug: selectedAgentForSettings,
+                    title: newKbTitle,
+                }),
+            });
 
-        const { error } = await supabase
-            .from("kb_sections")
-            .insert([{ agent_id: agent.id, title: newKbTitle }]);
+            if (res.ok) {
+                setNewKbTitle("");
+                fetchKbSections(selectedAgentForSettings);
+                showFeedback("Section created");
+            }
+        } catch (err) {
+            console.error("Error adding section:", err);
+        }
+    };
 
-        if (!error) {
-            setNewKbTitle("");
-            fetchKbSections(selectedAgentForSettings);
+    const handleDeleteSection = async (sectionId: string) => {
+        if (!selectedAgentForSettings) return;
+
+        try {
+            const res = await fetch("/api/kb", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete_section", sectionId }),
+            });
+
+            if (res.ok) {
+                if (expandedSectionId === sectionId) {
+                    setExpandedSectionId(null);
+                    setSectionEntries([]);
+                }
+                fetchKbSections(selectedAgentForSettings);
+                showFeedback("Section deleted");
+            }
+        } catch (err) {
+            console.error("Error deleting section:", err);
+        }
+    };
+
+    const handleAddEntry = async () => {
+        if (!newEntryContent.trim() || !expandedSectionId) return;
+
+        try {
+            const res = await fetch("/api/kb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "create_entry",
+                    sectionId: expandedSectionId,
+                    content: newEntryContent,
+                    source: newEntrySource || "Manual Entry",
+                }),
+            });
+
+            if (res.ok) {
+                setNewEntryContent("");
+                setNewEntrySource("");
+                fetchEntries(expandedSectionId);
+                if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
+                showFeedback("Entry added");
+            }
+        } catch (err) {
+            console.error("Error adding entry:", err);
+        }
+    };
+
+    const handleDeleteEntry = async (entryId: string) => {
+        if (!expandedSectionId) return;
+
+        try {
+            const res = await fetch("/api/kb", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete_entry", entryId }),
+            });
+
+            if (res.ok) {
+                fetchEntries(expandedSectionId);
+                if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
+                showFeedback("Entry removed");
+            }
+        } catch (err) {
+            console.error("Error deleting entry:", err);
         }
     };
 
@@ -156,15 +280,36 @@ export default function ChatInterface() {
         if (!selectedAgentForSettings) return;
         setIsSavingSettings(true);
 
-        const { error } = await supabase
-            .from("agents")
-            .update({ instruction: agentInstruction })
-            .eq("slug", selectedAgentForSettings);
+        try {
+            const res = await fetch("/api/kb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "update_instruction",
+                    agentSlug: selectedAgentForSettings,
+                    instruction: agentInstruction,
+                }),
+            });
 
-        if (!error) {
-            fetchAgents(); // Refresh the list
+            if (res.ok) {
+                fetchAgents();
+                showFeedback("Instructions saved");
+            }
+        } catch (err) {
+            console.error("Error saving instruction:", err);
+        } finally {
+            setIsSavingSettings(false);
         }
-        setIsSavingSettings(false);
+    };
+
+    const toggleSectionExpand = (sectionId: string) => {
+        if (expandedSectionId === sectionId) {
+            setExpandedSectionId(null);
+            setSectionEntries([]);
+        } else {
+            setExpandedSectionId(sectionId);
+            fetchEntries(sectionId);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -435,7 +580,7 @@ export default function ChatInterface() {
                         </div>
                     </>
                 ) : (
-                    /* Home Selection View refined */
+                    /* Home Selection View */
                     <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-[#FAFAFA]/30">
                         <div className="w-full max-w-5xl space-y-16">
                             <div className="text-center space-y-5">
@@ -520,11 +665,21 @@ export default function ChatInterface() {
                 )}
             </main>
 
-            {/* Settings Modal refined */}
+            {/* Feedback Toast */}
+            {savedFeedback && (
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] animate-in slide-in-from-bottom-4 fade-in duration-300">
+                    <div className="flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white rounded-2xl shadow-2xl text-[13px] font-semibold">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        {savedFeedback}
+                    </div>
+                </div>
+            )}
+
+            {/* Settings Modal */}
             {showSettings && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setShowSettings(false)} />
-                    <div className="relative w-full max-w-4xl max-h-[85vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+                    <div className="relative w-full max-w-5xl max-h-[85vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
                         <div className="flex items-center justify-between p-8 border-b border-zinc-100 shrink-0">
                             <div>
                                 <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Intelligence Settings</h2>
@@ -537,14 +692,14 @@ export default function ChatInterface() {
 
                         <div className="flex-1 overflow-hidden flex">
                             {/* Settings Nav */}
-                            <div className="w-64 border-r border-zinc-100 bg-zinc-50/50 p-6 space-y-8">
+                            <div className="w-64 border-r border-zinc-100 bg-zinc-50/50 p-6 space-y-8 shrink-0">
                                 <div>
                                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-4">Domain Management</span>
                                     <div className="space-y-1">
                                         {agents.map(a => (
                                             <button
                                                 key={a.id}
-                                                onClick={() => { setSelectedAgentForSettings(a.id); fetchKbSections(a.id); }}
+                                                onClick={() => { setSelectedAgentForSettings(a.id); fetchKbSections(a.id); setExpandedSectionId(null); setSectionEntries([]); }}
                                                 className={cn(
                                                     "w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all",
                                                     selectedAgentForSettings === a.id ? "bg-white border border-zinc-200 text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
@@ -560,14 +715,15 @@ export default function ChatInterface() {
                             {/* Settings Content */}
                             <div className="flex-1 overflow-y-auto p-10 bg-white">
                                 {selectedAgentForSettings ? (
-                                    <div className="space-y-12">
+                                    <div className="space-y-10">
                                         <div>
                                             <h3 className="text-xl font-bold text-zinc-900 mb-2">{agents.find(a => a.id === selectedAgentForSettings)?.name} Configuration</h3>
                                             <p className="text-zinc-400 text-sm">Configure agent behavior and specialized knowledge domains.</p>
                                         </div>
 
-                                        <div className="space-y-6">
-                                            <div className="flex items-center justify-between mb-2">
+                                        {/* Instructions */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
                                                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Base Instructions (Persona)</h4>
                                                 <Button
                                                     onClick={handleSaveAgentInstruction}
@@ -581,11 +737,12 @@ export default function ChatInterface() {
                                                 value={agentInstruction}
                                                 onChange={e => setAgentInstruction(e.target.value)}
                                                 placeholder="Enter the persona and core instructions for this agent..."
-                                                className="w-full min-h-[160px] p-5 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-900/20 text-[14px] leading-relaxed transition-all resize-none outline-none"
+                                                className="w-full min-h-[140px] p-5 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-900/20 text-[14px] leading-relaxed transition-all resize-none outline-none"
                                             />
                                         </div>
 
-                                        <div className="pt-8 border-t border-zinc-100 space-y-8">
+                                        {/* KB Sections */}
+                                        <div className="pt-8 border-t border-zinc-100 space-y-6">
                                             <div>
                                                 <h4 className="text-[14px] font-bold text-zinc-900 mb-2">Knowledge Base Sections</h4>
                                                 <p className="text-zinc-400 text-[13px]">Manage the documents and data clusters this agent can reference.</p>
@@ -595,26 +752,124 @@ export default function ChatInterface() {
                                                 <Input
                                                     value={newKbTitle}
                                                     onChange={e => setNewKbTitle(e.target.value)}
+                                                    onKeyDown={e => e.key === "Enter" && handleAddKbSection()}
                                                     placeholder="Section title (e.g. Guest Data Policy)"
                                                     className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
                                                 />
-                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px]">Add Section</Button>
+                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0">
+                                                    <Plus className="w-4 h-4 mr-1.5" />
+                                                    Add Section
+                                                </Button>
                                             </div>
 
-                                            <div className="grid grid-cols-1 gap-3">
+                                            <div className="space-y-3">
                                                 {kbSections.map(section => (
-                                                    <div key={section.id} className="p-5 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between group transition-all hover:bg-white hover:border-zinc-200 hover:shadow-sm">
-                                                        <div>
-                                                            <p className="text-[14px] font-bold text-zinc-800 tracking-tight">{section.title}</p>
-                                                            <p className="text-[11px] text-zinc-400 font-medium">{new Date(section.created_at).toLocaleDateString()} · Semantic clustering active</p>
+                                                    <div key={section.id} className="rounded-2xl border border-zinc-100 overflow-hidden transition-all hover:border-zinc-200">
+                                                        {/* Section Header */}
+                                                        <div
+                                                            className="p-5 bg-zinc-50 flex items-center justify-between cursor-pointer group hover:bg-white transition-all"
+                                                            onClick={() => toggleSectionExpand(section.id)}
+                                                        >
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <ChevronDown className={cn(
+                                                                    "w-4 h-4 text-zinc-400 transition-transform shrink-0",
+                                                                    expandedSectionId === section.id && "rotate-180"
+                                                                )} />
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[14px] font-bold text-zinc-800 tracking-tight truncate">{section.title}</p>
+                                                                    <p className="text-[11px] text-zinc-400 font-medium">
+                                                                        {new Date(section.created_at).toLocaleDateString()} · {section.entry_count} {section.entry_count === 1 ? "entry" : "entries"}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span className="text-[11px] font-bold text-zinc-300 bg-zinc-100 px-2.5 py-1 rounded-lg">
+                                                                    {section.entry_count}
+                                                                </span>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteSection(section.id); }}
+                                                                    className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-8 w-8 p-0"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
-                                                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-900 rounded-lg">Manage Data</Button>
+
+                                                        {/* Expanded Entry View */}
+                                                        {expandedSectionId === section.id && (
+                                                            <div className="border-t border-zinc-100 bg-white p-5 space-y-5 animate-in slide-in-from-top-1 duration-200">
+                                                                {/* Add Entry Form */}
+                                                                <div className="space-y-3">
+                                                                    <textarea
+                                                                        value={newEntryContent}
+                                                                        onChange={e => setNewEntryContent(e.target.value)}
+                                                                        placeholder="Paste a knowledge chunk, policy excerpt, or data reference..."
+                                                                        className="w-full min-h-[100px] p-4 rounded-xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-900/20 text-[13px] leading-relaxed transition-all resize-none outline-none"
+                                                                    />
+                                                                    <div className="flex gap-3">
+                                                                        <Input
+                                                                            value={newEntrySource}
+                                                                            onChange={e => setNewEntrySource(e.target.value)}
+                                                                            placeholder="Source label (e.g. GDPR Article 9)"
+                                                                            className="rounded-lg border-zinc-200 h-9 text-[13px]"
+                                                                        />
+                                                                        <Button
+                                                                            onClick={handleAddEntry}
+                                                                            disabled={!newEntryContent.trim()}
+                                                                            className="bg-zinc-900 text-white h-9 rounded-lg px-5 text-[12px] font-bold shrink-0"
+                                                                        >
+                                                                            <Plus className="w-3.5 h-3.5 mr-1.5" />
+                                                                            Add Entry
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Entry List */}
+                                                                {isLoadingEntries ? (
+                                                                    <div className="space-y-3">
+                                                                        {[1, 2].map(i => <div key={i} className="h-16 bg-zinc-50 rounded-xl animate-pulse" />)}
+                                                                    </div>
+                                                                ) : sectionEntries.length === 0 ? (
+                                                                    <div className="py-8 flex flex-col items-center text-center">
+                                                                        <FileText className="w-8 h-8 text-zinc-200 mb-3" />
+                                                                        <p className="text-zinc-400 text-[13px] font-medium">No entries yet. Add your first knowledge chunk above.</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Existing Entries</p>
+                                                                        {sectionEntries.map(entry => (
+                                                                            <div key={entry.id} className="p-4 rounded-xl bg-zinc-50 border border-zinc-100 group hover:bg-white hover:border-zinc-200 transition-all">
+                                                                                <div className="flex items-start justify-between gap-3">
+                                                                                    <div className="min-w-0 flex-1">
+                                                                                        <p className="text-[13px] text-zinc-700 leading-relaxed line-clamp-3">{entry.content}</p>
+                                                                                        <p className="text-[11px] text-zinc-400 font-medium mt-2">
+                                                                                            {entry.source} · {new Date(entry.created_at).toLocaleDateString()}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="sm"
+                                                                                        onClick={() => handleDeleteEntry(entry.id)}
+                                                                                        className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-7 w-7 p-0 shrink-0"
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </Button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ))}
                                                 {kbSections.length === 0 && (
                                                     <div className="py-12 border-2 border-dashed border-zinc-100 rounded-3xl flex flex-col items-center justify-center bg-zinc-50/50">
                                                         <Sparkles className="w-8 h-8 text-zinc-200 mb-4" />
                                                         <p className="text-zinc-400 text-sm font-medium">No knowledge sections yet.</p>
+                                                        <p className="text-zinc-300 text-[12px] mt-1">Add a section above to start building this agent&apos;s knowledge base.</p>
                                                     </div>
                                                 )}
                                             </div>
