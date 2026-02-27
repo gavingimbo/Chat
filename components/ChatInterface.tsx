@@ -20,7 +20,8 @@ import {
     FileText,
     Check,
     Loader2,
-    Upload
+    Upload,
+    Scale
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -62,6 +63,7 @@ const iconMap: Record<string, any> = {
     Building2,
     Sparkles,
     User,
+    Scale,
 };
 
 const defaultIcon = Sparkles;
