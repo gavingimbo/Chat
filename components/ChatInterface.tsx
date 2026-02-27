@@ -59,7 +59,9 @@ export default function ChatInterface() {
     const [showSettings, setShowSettings] = useState(false);
     const [kbSections, setKbSections] = useState<any[]>([]);
     const [newKbTitle, setNewKbTitle] = useState("");
+    const [agentInstruction, setAgentInstruction] = useState("");
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: ShieldCheck };
 
@@ -91,8 +93,10 @@ export default function ChatInterface() {
     };
 
     const fetchKbSections = async (agentSlug: string) => {
-        const { data: agent } = await supabase.from("agents").select("id").eq("slug", agentSlug).single();
+        const { data: agent } = await supabase.from("agents").select("id, instruction").eq("slug", agentSlug).single();
         if (!agent) return;
+
+        setAgentInstruction(agent.instruction || "");
 
         const { data, error } = await supabase
             .from("kb_sections")
@@ -146,6 +150,21 @@ export default function ChatInterface() {
             setNewKbTitle("");
             fetchKbSections(selectedAgentForSettings);
         }
+    };
+
+    const handleSaveAgentInstruction = async () => {
+        if (!selectedAgentForSettings) return;
+        setIsSavingSettings(true);
+
+        const { error } = await supabase
+            .from("agents")
+            .update({ instruction: agentInstruction })
+            .eq("slug", selectedAgentForSettings);
+
+        if (!error) {
+            fetchAgents(); // Refresh the list
+        }
+        setIsSavingSettings(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -518,19 +537,43 @@ export default function ChatInterface() {
                                 {selectedAgentForSettings ? (
                                     <div className="space-y-12">
                                         <div>
-                                            <h3 className="text-xl font-bold text-zinc-900 mb-2">{agents.find(a => a.id === selectedAgentForSettings)?.name} Knowledge</h3>
-                                            <p className="text-zinc-400 text-sm">Add data sections for this agent to reference during conversations.</p>
+                                            <h3 className="text-xl font-bold text-zinc-900 mb-2">{agents.find(a => a.id === selectedAgentForSettings)?.name} Configuration</h3>
+                                            <p className="text-zinc-400 text-sm">Configure agent behavior and specialized knowledge domains.</p>
                                         </div>
 
                                         <div className="space-y-6">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Base Instructions (Persona)</h4>
+                                                <Button
+                                                    onClick={handleSaveAgentInstruction}
+                                                    disabled={isSavingSettings}
+                                                    className="h-8 bg-zinc-900 text-white text-[11px] font-bold rounded-lg px-4"
+                                                >
+                                                    {isSavingSettings ? "Saving..." : "Save Instructions"}
+                                                </Button>
+                                            </div>
+                                            <textarea
+                                                value={agentInstruction}
+                                                onChange={e => setAgentInstruction(e.target.value)}
+                                                placeholder="Enter the persona and core instructions for this agent..."
+                                                className="w-full min-h-[160px] p-5 rounded-2xl bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-900/20 text-[14px] leading-relaxed transition-all resize-none outline-none"
+                                            />
+                                        </div>
+
+                                        <div className="pt-8 border-t border-zinc-100 space-y-8">
+                                            <div>
+                                                <h4 className="text-[14px] font-bold text-zinc-900 mb-2">Knowledge Base Sections</h4>
+                                                <p className="text-zinc-400 text-[13px]">Manage the documents and data clusters this agent can reference.</p>
+                                            </div>
+
                                             <div className="flex gap-3">
                                                 <Input
                                                     value={newKbTitle}
                                                     onChange={e => setNewKbTitle(e.target.value)}
                                                     placeholder="Section title (e.g. Guest Data Policy)"
-                                                    className="rounded-xl border-zinc-200 h-10 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
+                                                    className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
                                                 />
-                                                <Button onClick={handleAddKbSection} className="bg-zinc-900 text-white rounded-xl px-6 h-10 font-bold text-[13px] shadow-lg shadow-zinc-100">Add Section</Button>
+                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px]">Add Section</Button>
                                             </div>
 
                                             <div className="grid grid-cols-1 gap-3">
@@ -538,9 +581,9 @@ export default function ChatInterface() {
                                                     <div key={section.id} className="p-5 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-between group transition-all hover:bg-white hover:border-zinc-200 hover:shadow-sm">
                                                         <div>
                                                             <p className="text-[14px] font-bold text-zinc-800 tracking-tight">{section.title}</p>
-                                                            <p className="text-[11px] text-zinc-400 font-medium">{new Date(section.created_at).toLocaleDateString()} · 0 entries</p>
+                                                            <p className="text-[11px] text-zinc-400 font-medium">{new Date(section.created_at).toLocaleDateString()} · Semantic clustering active</p>
                                                         </div>
-                                                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-900 rounded-lg">Manage</Button>
+                                                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-900 rounded-lg">Manage Data</Button>
                                                     </div>
                                                 ))}
                                                 {kbSections.length === 0 && (
