@@ -27,6 +27,9 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/lib/supabase";
+import { Alert, AlertTitle, AlertDescription } from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import { useFileUpload } from "@/hooks/use-file-upload";
 
 interface Message {
     role: "user" | "assistant";
@@ -103,6 +106,17 @@ export default function ChatInterface() {
     const [isAddingEntry, setIsAddingEntry] = useState(false);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [newEntrySource, setNewEntrySource] = useState("");
+
+    const [uploadState, uploadActions] = useFileUpload({
+        accept: ".pdf,.txt,.md",
+        multiple: false,
+        onFilesAdded: (addedFiles) => {
+            if (addedFiles.length > 0) {
+                handleFileUploadDirect(addedFiles[0].file as File);
+            }
+        },
+        onError: (errors) => showError(errors[0])
+    });
 
     const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: ShieldCheck };
 
@@ -269,7 +283,7 @@ export default function ChatInterface() {
     const handleAddEntry = async () => {
         if (!newEntryContent.trim()) return;
         if (!expandedSectionId) {
-            setErrorMessage("No section selected");
+            showError("No section selected");
             return;
         }
 
@@ -282,7 +296,7 @@ export default function ChatInterface() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     action: "create_entry",
-                    sectionId: expandedSectionId,
+                    section_id: expandedSectionId,
                     content: newEntryContent,
                     source: newEntrySource || "Manual Entry",
                 }),
@@ -292,50 +306,56 @@ export default function ChatInterface() {
                 setNewEntryContent("");
                 setNewEntrySource("");
                 fetchEntries(expandedSectionId);
-                if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
+                const activeAgentSlug = agents.find(a => a.id === activeAgentId)?.id || "privacy";
+                fetchKbSections(activeAgentSlug);
                 showFeedback("Entry added");
             } else {
                 const data = await res.json();
-                setErrorMessage(data.error || "Failed to add entry");
+                showError(data.error || "Failed to add entry");
             }
         } catch (err: any) {
             console.error("Error adding entry:", err);
-            setErrorMessage("Network error: " + (err.message || "Unknown error"));
+            showError("Network error: " + (err.message || "Unknown error"));
         } finally {
             setIsAddingEntry(false);
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+    const handleFileUploadDirect = async (file: File) => {
         if (!file || !selectedAgentForSettings) return;
 
         setIsUploading(true);
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("agentSlug", selectedAgentForSettings);
+        setErrorMessage(null);
 
         try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("agentSlug", selectedAgentForSettings);
+
             const res = await fetch("/api/kb/upload", {
                 method: "POST",
-                body: formData, // fetch will set the correct multipart/form-data boundary automatically
+                body: formData,
             });
 
-            const data = await res.json();
-
             if (res.ok) {
-                showFeedback(`Processed ${file.name} into ${data.chunksFound} chunks.`);
+                const data = await res.json();
                 fetchKbSections(selectedAgentForSettings);
+                showFeedback(`Processed ${file.name} into ${data.chunksFound} chunks.`);
+                uploadActions.clearFiles();
             } else {
-                throw new Error(data.error || "Upload failed");
+                const data = await res.json();
+                showError(data.error || "Upload failed");
             }
-        } catch (err: any) {
-            console.error("Error uploading document:", err);
-            showFeedback(err.message || "Failed to upload document");
+        } catch (err) {
+            showError("Network error during upload");
         } finally {
             setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
         }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleFileUploadDirect(file);
     };
 
     const handleDeleteEntry = async (entryId: string) => {
@@ -487,7 +507,11 @@ export default function ChatInterface() {
                                     >
                                         <agent.icon className={cn("w-4 h-4 transition-colors", activeAgentId === agent.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900")} />
                                         <span className="font-medium">{agent.name}</span>
-                                        {!agent.active && <span className="ml-auto text-[10px] bg-zinc-50 text-zinc-400 px-1.5 py-0.5 rounded-md">Soon</span>}
+                                        {!agent.active && (
+                                            <Badge variant="outline" size="sm" className="ml-auto bg-zinc-50/50 text-zinc-400 border-zinc-100">
+                                                Soon
+                                            </Badge>
+                                        )}
                                     </button>
                                 ))
                             )}
@@ -748,21 +772,23 @@ export default function ChatInterface() {
             </main>
 
             {/* Feedback & Error Toasts */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-3">
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-3 min-w-[320px] max-w-[90vw]">
                 {savedFeedback && (
                     <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        <div className="flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white rounded-2xl shadow-2xl text-[13px] font-semibold whitespace-nowrap">
-                            <Check className="w-4 h-4 text-emerald-400" />
-                            {savedFeedback}
-                        </div>
+                        <Alert variant="success" className="shadow-2xl border-emerald-500/30 bg-white/90 backdrop-blur-md">
+                            <Check className="w-4 h-4" />
+                            <AlertTitle>Success</AlertTitle>
+                            <AlertDescription>{savedFeedback}</AlertDescription>
+                        </Alert>
                     </div>
                 )}
                 {errorMessage && (
                     <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
-                        <div className="flex items-center gap-2 px-5 py-3 bg-red-600 text-white rounded-2xl shadow-2xl text-[13px] font-semibold max-w-[90vw]">
-                            <X className="w-4 h-4 shrink-0" />
-                            <span className="leading-tight">{errorMessage}</span>
-                        </div>
+                        <Alert variant="destructive" className="shadow-2xl border-red-500/30 bg-white/90 backdrop-blur-md">
+                            <X className="w-4 h-4" />
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{errorMessage}</AlertDescription>
+                        </Alert>
                     </div>
                 )}
             </div>
@@ -868,16 +894,21 @@ export default function ChatInterface() {
                                                 </div>
                                             </div>
 
-                                            <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 group transition-all hover:bg-zinc-100 hover:border-zinc-300 border-dashed">
-                                                <input
-                                                    type="file"
-                                                    ref={fileInputRef}
-                                                    onChange={handleFileUpload}
-                                                    accept=".pdf,.txt,.md"
-                                                    disabled={isUploading}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                                                />
-                                                <div className="flex flex-col items-center justify-center p-8 text-center pointer-events-none">
+                                            <div
+                                                onDragOver={uploadActions.handleDragOver}
+                                                onDragEnter={uploadActions.handleDragEnter}
+                                                onDragLeave={uploadActions.handleDragLeave}
+                                                onDrop={uploadActions.handleDrop}
+                                                onClick={uploadActions.openFileDialog}
+                                                className={cn(
+                                                    "relative border-2 border-dashed rounded-2xl p-8 transition-all cursor-pointer text-center group",
+                                                    uploadState.isDragging
+                                                        ? "border-zinc-900 bg-zinc-50"
+                                                        : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100 hover:border-zinc-300"
+                                                )}
+                                            >
+                                                <input {...uploadActions.getInputProps()} className="sr-only" />
+                                                <div className="flex flex-col items-center justify-center p-0 text-center pointer-events-none">
                                                     {isUploading ? (
                                                         <>
                                                             <Loader2 className="w-8 h-8 text-zinc-400 mb-3 animate-spin" />
@@ -890,7 +921,7 @@ export default function ChatInterface() {
                                                                 <Upload className="w-5 h-5 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
                                                             </div>
                                                             <p className="text-[14px] font-bold text-zinc-800">Upload a Document (.pdf, .txt, .md)</p>
-                                                            <p className="text-[13px] text-zinc-500 mt-1">We'll automatically extract, process, and chunk the data.</p>
+                                                            <p className="text-[13px] text-zinc-500 mt-1">Drag & drop or click to upload</p>
                                                         </>
                                                     )}
                                                 </div>
