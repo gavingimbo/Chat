@@ -22,15 +22,10 @@ export const model = genAI.getGenerativeModel({
 
 export const embeddingModel = genAI.getGenerativeModel({
   model: "text-embedding-004"
-}, {
-  apiVersion: "v1beta" // Required for outputDimensionality in some SDK versions
 });
 
 // Helper for consistency
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const result = await embeddingModel.embedContent({
-    content: { parts: [{ text }], role: "user" },
-    outputDimensionality: 768,
-  } as any);
+  const result = await embeddingModel.embedContent(text);
   return result.embedding.values;
 }
