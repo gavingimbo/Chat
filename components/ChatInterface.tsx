@@ -237,7 +237,9 @@ export default function ChatInterface() {
             if (res.ok) {
                 setNewKbTitle("");
                 setNewKbDescription("");
-                fetchKbSections(selectedAgentForSettings);
+                if (selectedAgentForSettings) {
+                    fetchKbSections(selectedAgentForSettings);
+                }
                 showFeedback("Section created");
             } else {
                 showError(data.error || "Failed to create section");
@@ -305,9 +307,10 @@ export default function ChatInterface() {
             if (res.ok) {
                 setNewEntryContent("");
                 setNewEntrySource("");
-                fetchEntries(expandedSectionId);
-                const activeAgentSlug = agents.find(a => a.id === activeAgentId)?.id || "privacy";
-                fetchKbSections(activeAgentSlug);
+                await fetchEntries(expandedSectionId);
+                if (selectedAgentForSettings) {
+                    await fetchKbSections(selectedAgentForSettings);
+                }
                 showFeedback("Entry added");
             } else {
                 const data = await res.json();
@@ -370,8 +373,8 @@ export default function ChatInterface() {
             });
 
             if (res.ok) {
-                fetchEntries(expandedSectionId);
-                if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
+                if (expandedSectionId) await fetchEntries(expandedSectionId);
+                if (selectedAgentForSettings) await fetchKbSections(selectedAgentForSettings);
                 showFeedback("Entry removed");
             } else {
                 const data = await res.json();
