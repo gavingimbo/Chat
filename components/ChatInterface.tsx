@@ -448,6 +448,15 @@ export default function ChatInterface() {
                                 <p className="text-zinc-500 text-[15px] md:text-base max-w-[460px] mx-auto leading-relaxed">
                                     Select a specialized intelligence agent to start a secure, grounded conversation.
                                 </p>
+                                <div className="pt-4">
+                                    <Button
+                                        onClick={() => setShowSettings(true)}
+                                        className="h-11 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-2xl px-6 font-bold text-[13px] shadow-sm transition-all"
+                                    >
+                                        <Settings className="w-4 h-4 mr-2" />
+                                        Manage Intelligence
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
@@ -476,15 +485,31 @@ export default function ChatInterface() {
                                             <h3 className="font-semibold text-zinc-900 text-[15px] mb-1.5 tracking-tight">{agent.name}</h3>
                                             <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-2">{agent.description}</p>
 
-                                            <div className="mt-auto flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300">
-                                                {agent.active ? (
-                                                    <>
-                                                        <span className="text-zinc-900 font-bold uppercase tracking-wider text-[10px]">Start chat</span>
-                                                        <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
-                                                    </>
-                                                ) : (
-                                                    <span className="text-zinc-300 font-bold uppercase tracking-wider text-[10px]">Coming soon</span>
-                                                )}
+                                            <div className="mt-auto flex items-center justify-between w-full pt-4 border-t border-zinc-50">
+                                                <div className="flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300">
+                                                    {agent.active ? (
+                                                        <>
+                                                            <span className="text-zinc-900 font-bold uppercase tracking-wider text-[10px]">Start chat</span>
+                                                            <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-zinc-300 font-bold uppercase tracking-wider text-[10px]">Coming soon</span>
+                                                    )}
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedAgentForSettings(agent.id);
+                                                        fetchKbSections(agent.id);
+                                                        setShowSettings(true);
+                                                    }}
+                                                    className="h-7 px-2 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 text-[10px] font-bold uppercase tracking-wider transition-all"
+                                                >
+                                                    <Settings className="w-3 h-3 mr-1.5" />
+                                                    Configure
+                                                </Button>
                                             </div>
                                         </button>
                                     ))
