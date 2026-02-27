@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         const { action } = body;
 
         if (action === "create_section") {
-            const { agentSlug, title } = body;
+            const { agentSlug, title, description } = body;
             if (!agentSlug || !title) return NextResponse.json({ error: "agentSlug and title required" }, { status: 400 });
 
             const { data: agent } = await supabaseAdmin
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
             const { data, error } = await supabaseAdmin
                 .from("kb_sections")
-                .insert([{ agent_id: agent.id, title }])
+                .insert([{ agent_id: agent.id, title, description }])
                 .select()
                 .single();
 

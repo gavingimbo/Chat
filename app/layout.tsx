@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CL Intelligence",
-  description: "Advanced Privacy-Focused AI Intelligence",
+  title: "Cinnamon Intelligence",
+  description: "Advanced AI-powered intelligence for Cinnamon Life",
 };
 
 export default function RootLayout({

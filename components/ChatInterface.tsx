@@ -44,6 +44,7 @@ interface Agent {
 interface KbSection {
     id: string;
     title: string;
+    description: string | null;
     created_at: string;
     entry_count: number;
 }
@@ -79,7 +80,6 @@ export default function ChatInterface() {
     // Settings / KB State
     const [showSettings, setShowSettings] = useState(false);
     const [kbSections, setKbSections] = useState<KbSection[]>([]);
-    const [newKbTitle, setNewKbTitle] = useState("");
     const [agentInstruction, setAgentInstruction] = useState("");
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -93,6 +93,8 @@ export default function ChatInterface() {
     // KB Entry State
     const [isCreatingSection, setIsCreatingSection] = useState(false);
     const [isDeletingItemId, setIsDeletingItemId] = useState<string | null>(null);
+    const [newKbTitle, setNewKbTitle] = useState("");
+    const [newKbDescription, setNewKbDescription] = useState("");
     const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
     const [sectionEntries, setSectionEntries] = useState<KbEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(false);
@@ -210,12 +212,14 @@ export default function ChatInterface() {
                     action: "create_section",
                     agentSlug: selectedAgentForSettings,
                     title: newKbTitle,
+                    description: newKbDescription,
                 }),
             });
 
             const data = await res.json();
             if (res.ok) {
                 setNewKbTitle("");
+                setNewKbDescription("");
                 fetchKbSections(selectedAgentForSettings);
                 showFeedback("Section created");
             } else {
@@ -439,11 +443,10 @@ export default function ChatInterface() {
                             onClick={() => setActiveAgentId(null)}
                             className="group flex flex-col items-start transition-all hover:translate-x-0.5"
                         >
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2.5 h-2.5 rounded-full bg-zinc-900 shadow-[0_0_10px_rgba(0,0,0,0.1)]" />
-                                <span className="text-[13px] font-bold tracking-tight text-zinc-900">Cinnamon Life</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[15px] font-bold tracking-tight text-zinc-900">Cinnamon Life</span>
+                                <span className="text-[15px] font-bold tracking-tight text-zinc-300">Intelligence</span>
                             </div>
-                            <span className="text-[11px] font-medium text-zinc-400 pl-4.5">Intelligence Hub</span>
                         </button>
                     </div>
 
@@ -497,7 +500,7 @@ export default function ChatInterface() {
                     <aside className="relative w-72 h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-500">
                         <div className="flex items-center justify-between p-6 border-b border-zinc-100">
                             <div>
-                                <p className="text-[13px] font-bold tracking-tight text-zinc-900 uppercase">Intelligence</p>
+                                <p className="text-[13px] font-bold tracking-tight text-zinc-900 uppercase">Cinnamon Intelligence</p>
                                 <p className="text-[10px] text-zinc-400">Cinnamon Life Operations</p>
                             </div>
                             <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-400 hover:bg-zinc-50 rounded-full transition-colors">
@@ -557,7 +560,7 @@ export default function ChatInterface() {
 
                         {/* Messages */}
                         <div ref={scrollRef} className="flex-1 overflow-y-auto bg-white">
-                            <div className="max-w-[720px] mx-auto px-6 py-10 md:py-20 space-y-16">
+                            <div className="max-w-5xl mx-auto px-6 py-10 md:py-20 space-y-16">
                                 {messages.map((message, i) => (
                                     <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                                         <div className="flex items-center gap-3 mb-4">
@@ -619,7 +622,7 @@ export default function ChatInterface() {
 
                         {/* Input Area */}
                         <div className="border-t border-zinc-100 px-4 md:px-8 py-6 bg-white/80 backdrop-blur-md">
-                            <form onSubmit={handleSubmit} className="max-w-[720px] mx-auto">
+                            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto">
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-zinc-900/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
                                     <div className="relative flex items-center gap-3 bg-zinc-50 rounded-2xl px-5 py-2 border border-zinc-200 focus-within:border-zinc-900/20 focus-within:bg-white transition-all shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
@@ -628,7 +631,7 @@ export default function ChatInterface() {
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
                                             placeholder={`Ask ${activeAgent.name} anything...`}
-                                            className="bg-transparent border-none focus-visible:ring-0 h-12 text-[15px] text-zinc-900 placeholder:text-zinc-400 font-medium"
+                                            className="bg-transparent border-none focus-visible:ring-0 h-10 text-[15px] text-zinc-900 placeholder:text-zinc-400 font-medium"
                                             disabled={isLoading}
                                         />
                                         <Button
@@ -823,22 +826,32 @@ export default function ChatInterface() {
                                                 <p className="text-zinc-400 text-[13px]">Manage the documents and data clusters this agent can reference.</p>
                                             </div>
 
-                                            <div className="flex gap-3">
-                                                <Input
-                                                    value={newKbTitle}
-                                                    onChange={e => setNewKbTitle(e.target.value)}
-                                                    onKeyDown={e => e.key === "Enter" && handleAddKbSection()}
-                                                    placeholder="Section title (e.g. Guest Data Policy)"
-                                                    className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
-                                                />
-                                                <Button
-                                                    onClick={handleAddKbSection}
-                                                    disabled={isCreatingSection || !newKbTitle.trim()}
-                                                    className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap"
-                                                >
-                                                    {isCreatingSection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
-                                                    Add Section
-                                                </Button>
+                                            <div className="space-y-4">
+                                                <div className="flex flex-col gap-3">
+                                                    <Input
+                                                        value={newKbTitle}
+                                                        onChange={e => setNewKbTitle(e.target.value)}
+                                                        placeholder="Section Title (e.g. Guest Data Policy)"
+                                                        className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
+                                                    />
+                                                    <div className="flex gap-3">
+                                                        <Input
+                                                            value={newKbDescription}
+                                                            onChange={e => setNewKbDescription(e.target.value)}
+                                                            onKeyDown={e => e.key === "Enter" && handleAddKbSection()}
+                                                            placeholder="Description or Info (optional)"
+                                                            className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
+                                                        />
+                                                        <Button
+                                                            onClick={handleAddKbSection}
+                                                            disabled={isCreatingSection || !newKbTitle.trim()}
+                                                            className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap"
+                                                        >
+                                                            {isCreatingSection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                                                            Add Section
+                                                        </Button>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 group transition-all hover:bg-zinc-100 hover:border-zinc-300 border-dashed">
@@ -884,6 +897,9 @@ export default function ChatInterface() {
                                                                 )} />
                                                                 <div className="min-w-0">
                                                                     <p className="text-[14px] font-bold text-zinc-800 tracking-tight truncate">{section.title}</p>
+                                                                    {section.description && (
+                                                                        <p className="text-[12px] text-zinc-400 mt-0.5 line-clamp-1">{section.description}</p>
+                                                                    )}
                                                                     <p className="text-[11px] text-zinc-400 font-medium">
                                                                         {new Date(section.created_at).toLocaleDateString()} · {section.entry_count} {section.entry_count === 1 ? "entry" : "entries"}
                                                                     </p>
