@@ -304,17 +304,21 @@ export default function ChatInterface() {
                     </>
                 ) : (
                     /* Home Selection View */
-                    <div className="flex-1 flex flex-col items-center justify-center px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="w-full max-w-3xl space-y-12">
-                            <div className="text-center space-y-4">
-                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-zinc-900 text-white mb-6">
-                                    <Sparkles className="w-6 h-6" />
+                    <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-[#FAFAFA]/30">
+                        <div className="w-full max-w-5xl space-y-16">
+                            <div className="text-center space-y-5">
+                                <div className="inline-flex items-center justify-center w-11 h-11 rounded-[14px] bg-zinc-900 text-white mb-6 shadow-2xl shadow-zinc-200">
+                                    <Sparkles className="w-5 h-5" />
                                 </div>
-                                <h1 className="text-3xl md:text-4xl font-semibold text-zinc-900 tracking-tight">Which agent do you want to use?</h1>
-                                <p className="text-zinc-400 text-sm md:text-base max-w-md mx-auto">Select a specialized intelligence agent to start a secure, grounded conversation.</p>
+                                <h1 className="text-3xl md:text-[40px] font-semibold text-zinc-900 tracking-[-0.03em] leading-tight">
+                                    Which agent do you want to use?
+                                </h1>
+                                <p className="text-zinc-500 text-[15px] md:text-base max-w-[460px] mx-auto leading-relaxed">
+                                    Select a specialized intelligence agent to start a secure, grounded conversation.
+                                </p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
                                 {agents.map((agent) => (
                                     <button
                                         key={agent.id}
@@ -323,22 +327,25 @@ export default function ChatInterface() {
                                         className={cn(
                                             "flex flex-col items-start p-6 rounded-2xl border text-left transition-all duration-300 relative group",
                                             agent.active
-                                                ? "bg-white border-zinc-100 hover:border-zinc-300 hover:shadow-xl hover:shadow-zinc-200/50 hover:-translate-y-1"
-                                                : "bg-[#FAFAFA] border-zinc-50 opacity-60 cursor-not-allowed"
+                                                ? "bg-white border-zinc-100 hover:border-zinc-200 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] hover:-translate-y-1"
+                                                : "bg-zinc-50 border-zinc-50/50 opacity-60 cursor-not-allowed"
                                         )}
                                     >
                                         <div className={cn(
-                                            "w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors",
+                                            "w-9 h-9 rounded-xl flex items-center justify-center mb-5 transition-all duration-300",
                                             agent.active ? "bg-zinc-50 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white" : "bg-zinc-100 text-zinc-400"
                                         )}>
-                                            <agent.icon className="w-5 h-5" />
+                                            <agent.icon className="w-[18px] h-[18px]" />
                                         </div>
-                                        <h3 className="font-semibold text-zinc-900 text-[15px] mb-1.5">{agent.name}</h3>
-                                        <p className="text-zinc-400 text-[13px] leading-relaxed mb-4">{agent.description}</p>
+                                        <h3 className="font-semibold text-zinc-900 text-[15px] mb-1.5 tracking-tight">{agent.name}</h3>
+                                        <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-2">{agent.description}</p>
 
-                                        <div className="mt-auto flex items-center text-[12px] font-medium transition-transform group-hover:translate-x-1">
+                                        <div className="mt-auto flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300">
                                             {agent.active ? (
-                                                <span className="text-zinc-900">Start chat</span>
+                                                <>
+                                                    <span className="text-zinc-900">Start chat</span>
+                                                    <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
+                                                </>
                                             ) : (
                                                 <span className="text-zinc-300">Coming soon</span>
                                             )}
@@ -347,7 +354,11 @@ export default function ChatInterface() {
                                 ))}
                             </div>
 
-                            <p className="text-center text-[11px] text-zinc-300 pt-8">Powered by Cinnamon Life Intelligence Layer</p>
+                            <div className="pt-12 text-center">
+                                <p className="text-[11px] text-zinc-300 font-semibold tracking-[0.2em] uppercase">
+                                    Powered by Cinnamon Life Intelligence Layer
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}
