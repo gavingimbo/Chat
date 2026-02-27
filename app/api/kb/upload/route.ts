@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdfParse from "pdf-parse";
 
 // We force dynamic so it doesn't try to statically generate
 export const dynamic = "force-dynamic";
@@ -69,6 +68,8 @@ export async function POST(req: NextRequest) {
 
         if (file.type === "application/pdf") {
             try {
+                // Dynamically import pdf-parse to avoid build-time file system issues
+                const pdfParse = (await import("pdf-parse")).default;
                 const pdfData = await pdfParse(fileBuffer);
                 textContent = pdfData.text;
             } catch (err: any) {

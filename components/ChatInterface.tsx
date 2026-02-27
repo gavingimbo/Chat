@@ -84,12 +84,15 @@ export default function ChatInterface() {
     const [selectedAgentForSettings, setSelectedAgentForSettings] = useState<string | null>(null);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [savedFeedback, setSavedFeedback] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Document Upload State
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // KB Entry State
+    const [isCreatingSection, setIsCreatingSection] = useState(false);
+    const [isDeletingItemId, setIsDeletingItemId] = useState<string | null>(null);
     const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
     const [sectionEntries, setSectionEntries] = useState<KbEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(false);
@@ -100,7 +103,14 @@ export default function ChatInterface() {
 
     const showFeedback = (msg: string) => {
         setSavedFeedback(msg);
-        setTimeout(() => setSavedFeedback(null), 2500);
+        setErrorMessage(null);
+        setTimeout(() => setSavedFeedback(null), 3000);
+    };
+
+    const showError = (msg: string) => {
+        setErrorMessage(msg);
+        setSavedFeedback(null);
+        setTimeout(() => setErrorMessage(null), 6000);
     };
 
     const fetchAgents = async () => {
@@ -189,8 +199,9 @@ export default function ChatInterface() {
     };
 
     const handleAddKbSection = async () => {
-        if (!newKbTitle.trim() || !selectedAgentForSettings) return;
+        if (!newKbTitle.trim() || !selectedAgentForSettings || isCreatingSection) return;
 
+        setIsCreatingSection(true);
         try {
             const res = await fetch("/api/kb", {
                 method: "POST",
@@ -202,19 +213,26 @@ export default function ChatInterface() {
                 }),
             });
 
+            const data = await res.json();
             if (res.ok) {
                 setNewKbTitle("");
                 fetchKbSections(selectedAgentForSettings);
                 showFeedback("Section created");
+            } else {
+                showError(data.error || "Failed to create section");
             }
         } catch (err) {
             console.error("Error adding section:", err);
+            showError("Network error. Please try again.");
+        } finally {
+            setIsCreatingSection(false);
         }
     };
 
     const handleDeleteSection = async (sectionId: string) => {
-        if (!selectedAgentForSettings) return;
+        if (!selectedAgentForSettings || isDeletingItemId) return;
 
+        setIsDeletingItemId(sectionId);
         try {
             const res = await fetch("/api/kb", {
                 method: "DELETE",
@@ -229,9 +247,15 @@ export default function ChatInterface() {
                 }
                 fetchKbSections(selectedAgentForSettings);
                 showFeedback("Section deleted");
+            } else {
+                const data = await res.json();
+                showError(data.error || "Failed to delete section");
             }
         } catch (err) {
             console.error("Error deleting section:", err);
+            showError("Network error.");
+        } finally {
+            setIsDeletingItemId(null);
         }
     };
 
@@ -296,8 +320,9 @@ export default function ChatInterface() {
     };
 
     const handleDeleteEntry = async (entryId: string) => {
-        if (!expandedSectionId) return;
+        if (!expandedSectionId || isDeletingItemId) return;
 
+        setIsDeletingItemId(entryId);
         try {
             const res = await fetch("/api/kb", {
                 method: "DELETE",
@@ -309,9 +334,15 @@ export default function ChatInterface() {
                 fetchEntries(expandedSectionId);
                 if (selectedAgentForSettings) fetchKbSections(selectedAgentForSettings);
                 showFeedback("Entry removed");
+            } else {
+                const data = await res.json();
+                showError(data.error || "Failed to remove entry");
             }
         } catch (err) {
             console.error("Error deleting entry:", err);
+            showError("Network error.");
+        } finally {
+            setIsDeletingItemId(null);
         }
     };
 
@@ -664,15 +695,15 @@ export default function ChatInterface() {
                                             <h3 className="font-semibold text-zinc-900 text-[15px] mb-1.5 tracking-tight">{agent.name}</h3>
                                             <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-2">{agent.description}</p>
 
-                                            <div className="mt-auto flex items-center justify-between w-full pt-4 border-t border-zinc-50">
-                                                <div className="flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300">
+                                            <div className="mt-auto flex items-center justify-between w-full pt-4 border-t border-zinc-50 overflow-hidden">
+                                                <div className="flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300 min-w-0">
                                                     {agent.active ? (
-                                                        <>
+                                                        <div className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
                                                             <span className="text-zinc-900 font-bold uppercase tracking-wider text-[10px]">Start chat</span>
                                                             <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
-                                                        </>
+                                                        </div>
                                                     ) : (
-                                                        <span className="text-zinc-300 font-bold uppercase tracking-wider text-[10px]">Coming soon</span>
+                                                        <span className="text-zinc-300 font-bold uppercase tracking-wider text-[10px] whitespace-nowrap">Coming soon</span>
                                                     )}
                                                 </div>
                                                 <Button
@@ -684,7 +715,7 @@ export default function ChatInterface() {
                                                         fetchKbSections(agent.id);
                                                         setShowSettings(true);
                                                     }}
-                                                    className="h-7 px-2 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 text-[10px] font-bold uppercase tracking-wider transition-all"
+                                                    className="h-7 px-2 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0"
                                                 >
                                                     <Settings className="w-3 h-3 mr-1.5" />
                                                     Configure
@@ -699,15 +730,25 @@ export default function ChatInterface() {
                 )}
             </main>
 
-            {/* Feedback Toast */}
-            {savedFeedback && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] animate-in slide-in-from-bottom-4 fade-in duration-300">
-                    <div className="flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white rounded-2xl shadow-2xl text-[13px] font-semibold">
-                        <Check className="w-4 h-4 text-emerald-400" />
-                        {savedFeedback}
+            {/* Feedback & Error Toasts */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-3">
+                {savedFeedback && (
+                    <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
+                        <div className="flex items-center gap-2 px-5 py-3 bg-zinc-900 text-white rounded-2xl shadow-2xl text-[13px] font-semibold whitespace-nowrap">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            {savedFeedback}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+                {errorMessage && (
+                    <div className="animate-in slide-in-from-bottom-4 fade-in duration-300">
+                        <div className="flex items-center gap-2 px-5 py-3 bg-red-600 text-white rounded-2xl shadow-2xl text-[13px] font-semibold max-w-[90vw]">
+                            <X className="w-4 h-4 shrink-0" />
+                            <span className="leading-tight">{errorMessage}</span>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Settings Modal */}
             {showSettings && (
@@ -790,8 +831,12 @@ export default function ChatInterface() {
                                                     placeholder="Section title (e.g. Guest Data Policy)"
                                                     className="rounded-xl border-zinc-200 h-11 py-0 focus-visible:ring-zinc-900/10 text-[14px]"
                                                 />
-                                                <Button onClick={handleAddKbSection} className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap">
-                                                    <Plus className="w-4 h-4 mr-1.5" />
+                                                <Button
+                                                    onClick={handleAddKbSection}
+                                                    disabled={isCreatingSection || !newKbTitle.trim()}
+                                                    className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap"
+                                                >
+                                                    {isCreatingSection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
                                                     Add Section
                                                 </Button>
                                             </div>
@@ -854,7 +899,11 @@ export default function ChatInterface() {
                                                                     onClick={(e) => { e.stopPropagation(); handleDeleteSection(section.id); }}
                                                                     className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-8 w-8 p-0"
                                                                 >
-                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                    {isDeletingItemId === section.id ? (
+                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300" />
+                                                                    ) : (
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    )}
                                                                 </Button>
                                                             </div>
                                                         </div>
@@ -913,10 +962,15 @@ export default function ChatInterface() {
                                                                                     <Button
                                                                                         variant="ghost"
                                                                                         size="sm"
+                                                                                        disabled={!!isDeletingItemId}
                                                                                         onClick={() => handleDeleteEntry(entry.id)}
                                                                                         className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-7 w-7 p-0 shrink-0"
                                                                                     >
-                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                        {isDeletingItemId === entry.id ? (
+                                                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                                                        ) : (
+                                                                                            <Trash2 className="w-3 h-3" />
+                                                                                        )}
                                                                                     </Button>
                                                                                 </div>
                                                                             </div>
