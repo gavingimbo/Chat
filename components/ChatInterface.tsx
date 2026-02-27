@@ -458,8 +458,8 @@ export default function ChatInterface() {
                             onClick={() => setActiveAgentId(null)}
                             className="group flex flex-col items-start transition-all hover:translate-x-0.5"
                         >
-                            <span className="text-[15px] font-bold tracking-tight text-zinc-900 leading-tight">Cinnamon Life</span>
-                            <span className="text-[15px] font-bold tracking-tight text-zinc-300 leading-tight">Intelligence</span>
+                            <span className="text-[15px] font-bold tracking-tight text-zinc-900 leading-tight">Cinnamon</span>
+                            <span className="text-[12px] font-bold tracking-tight text-zinc-300 leading-tight">Intelligence</span>
                         </button>
                     </div>
 
@@ -513,8 +513,8 @@ export default function ChatInterface() {
                     <aside className="relative w-72 h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-500">
                         <div className="flex items-center justify-between p-6 border-b border-zinc-100">
                             <div>
-                                <p className="text-[14px] font-bold tracking-tight text-zinc-900 uppercase leading-tight">Cinnamon Life</p>
-                                <p className="text-[14px] font-bold tracking-tight text-zinc-300 uppercase leading-tight">Intelligence</p>
+                                <p className="text-[14px] font-bold tracking-tight text-zinc-900 uppercase leading-tight">Cinnamon</p>
+                                <p className="text-[11px] font-bold tracking-tight text-zinc-300 uppercase leading-tight">Intelligence</p>
                                 <p className="text-[10px] text-zinc-400 mt-1">Cinnamon Life Operations</p>
                             </div>
                             <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-400 hover:bg-zinc-50 rounded-full transition-colors">
