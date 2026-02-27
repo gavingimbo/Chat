@@ -443,10 +443,8 @@ export default function ChatInterface() {
                             onClick={() => setActiveAgentId(null)}
                             className="group flex flex-col items-start transition-all hover:translate-x-0.5"
                         >
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[15px] font-bold tracking-tight text-zinc-900">Cinnamon Life</span>
-                                <span className="text-[15px] font-bold tracking-tight text-zinc-300">Intelligence</span>
-                            </div>
+                            <span className="text-[15px] font-bold tracking-tight text-zinc-900 leading-tight">Cinnamon Life</span>
+                            <span className="text-[15px] font-bold tracking-tight text-zinc-300 leading-tight">Intelligence</span>
                         </button>
                     </div>
 
@@ -500,8 +498,9 @@ export default function ChatInterface() {
                     <aside className="relative w-72 h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-500">
                         <div className="flex items-center justify-between p-6 border-b border-zinc-100">
                             <div>
-                                <p className="text-[13px] font-bold tracking-tight text-zinc-900 uppercase">Cinnamon Intelligence</p>
-                                <p className="text-[10px] text-zinc-400">Cinnamon Life Operations</p>
+                                <p className="text-[14px] font-bold tracking-tight text-zinc-900 uppercase leading-tight">Cinnamon Life</p>
+                                <p className="text-[14px] font-bold tracking-tight text-zinc-300 uppercase leading-tight">Intelligence</p>
+                                <p className="text-[10px] text-zinc-400 mt-1">Cinnamon Life Operations</p>
                             </div>
                             <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-400 hover:bg-zinc-50 rounded-full transition-colors">
                                 <X className="w-5 h-5" />
@@ -690,13 +689,13 @@ export default function ChatInterface() {
                                             )}
                                         >
                                             <div className={cn(
-                                                "w-9 h-9 rounded-xl flex items-center justify-center mb-5 transition-all duration-300",
-                                                agent.active ? "bg-zinc-50 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white" : "bg-zinc-100 text-zinc-400"
+                                                "w-10 h-10 rounded-xl flex items-center justify-center mb-6 transition-all duration-300",
+                                                agent.active ? "bg-zinc-50 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white group-hover:scale-110" : "bg-zinc-100 text-zinc-400"
                                             )}>
-                                                <agent.icon className="w-[18px] h-[18px]" />
+                                                <agent.icon className="w-5 h-5" />
                                             </div>
-                                            <h3 className="font-semibold text-zinc-900 text-[15px] mb-1.5 tracking-tight">{agent.name}</h3>
-                                            <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-2">{agent.description}</p>
+                                            <h3 className="font-bold text-zinc-900 text-[16px] mb-2 tracking-tight leading-snug">{agent.name}</h3>
+                                            <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-3">{agent.description}</p>
 
                                             <div className="mt-auto flex items-center justify-between w-full pt-4 border-t border-zinc-50 overflow-hidden">
                                                 <div className="flex items-center gap-1.5 text-[12px] font-medium transition-all duration-300 min-w-0">
