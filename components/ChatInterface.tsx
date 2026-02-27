@@ -354,11 +354,6 @@ export default function ChatInterface() {
                                 ))}
                             </div>
 
-                            <div className="pt-12 text-center">
-                                <p className="text-[11px] text-zinc-300 font-semibold tracking-[0.2em] uppercase">
-                                    Powered by Cinnamon Life Intelligence Layer
-                                </p>
-                            </div>
                         </div>
                     </div>
                 )}
