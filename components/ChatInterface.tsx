@@ -3,26 +3,27 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-    ShieldCheck,
-    LayoutDashboard,
-    Building2,
-    ArrowUp,
-    Sparkles,
-    Menu,
-    X,
-    ChevronRight,
-    ChevronDown,
-    Settings,
-    User,
-    Plus,
-    Trash2,
-    FileText,
-    Check,
-    Loader2,
-    Upload,
-    Scale
-} from "lucide-react";
+    Shield01Icon,
+    DashboardSquare01Icon,
+    Building02Icon,
+    ArrowUp01Icon,
+    MagicWand01Icon,
+    Menu01Icon,
+    Cancel01Icon,
+    ArrowRight01Icon,
+    ArrowDown01Icon,
+    Settings02Icon,
+    UserIcon,
+    Add01Icon,
+    Delete02Icon,
+    LegalDocumentIcon,
+    Note01Icon,
+    Tick01Icon,
+    Loading03Icon,
+    CloudUploadIcon,
+} from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -61,15 +62,15 @@ interface KbEntry {
 }
 
 const iconMap: Record<string, any> = {
-    ShieldCheck,
-    LayoutDashboard,
-    Building2,
-    Sparkles,
-    User,
-    Scale,
+    ShieldCheck: Shield01Icon,
+    LayoutDashboard: DashboardSquare01Icon,
+    Building2: Building02Icon,
+    Sparkles: MagicWand01Icon,
+    User: UserIcon,
+    Scale: LegalDocumentIcon,
 };
 
-const defaultIcon = Sparkles;
+const defaultIcon = MagicWand01Icon;
 
 export default function ChatInterface() {
     const [agents, setAgents] = useState<Agent[]>([]);
@@ -116,7 +117,7 @@ export default function ChatInterface() {
         onError: (errors) => showError(errors[0])
     });
 
-    const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: ShieldCheck };
+    const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || { id: "privacy", name: "Privacy Advisor", icon: Shield01Icon };
 
     const showFeedback = (msg: string) => {
         toast.success(msg);
@@ -500,7 +501,7 @@ export default function ChatInterface() {
                                                 : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
                                         )}
                                     >
-                                        <agent.icon className={cn("w-4 h-4 transition-colors", activeAgentId === agent.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900")} />
+                                        <HugeiconsIcon icon={agent.icon} size={16} strokeWidth={1.2} className={cn("transition-colors", activeAgentId === agent.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900")} />
                                         <span className="font-medium">{agent.name}</span>
                                         {!agent.active && (
                                             <Badge variant="outline" size="sm" className="ml-auto bg-zinc-50/50 text-zinc-400 border-zinc-100">
@@ -518,7 +519,7 @@ export default function ChatInterface() {
                             onClick={() => setShowSettings(true)}
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium text-zinc-500 hover:text-zinc-900 hover:bg-white border border-transparent hover:border-zinc-200 transition-all"
                         >
-                            <Settings className="w-4 h-4" />
+                            <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={1.2} />
                             <span>System Settings</span>
                         </button>
                     </div>
@@ -537,7 +538,7 @@ export default function ChatInterface() {
                                 <p className="text-[10px] text-zinc-400 mt-1">Cinnamon Life Operations</p>
                             </div>
                             <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-zinc-400 hover:bg-zinc-50 rounded-full transition-colors">
-                                <X className="w-5 h-5" />
+                                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={1.2} />
                             </button>
                         </div>
                         <div className="p-4 flex-1 overflow-y-auto">
@@ -553,7 +554,7 @@ export default function ChatInterface() {
                                         )}
                                         onClick={() => handleSelectAgent(agent.id)}
                                     >
-                                        <agent.icon className="w-4 h-4" />
+                                        <HugeiconsIcon icon={agent.icon} size={16} strokeWidth={1.2} />
                                         <span className="font-medium">{agent.name}</span>
                                     </button>
                                 ))}
@@ -564,7 +565,7 @@ export default function ChatInterface() {
                                 onClick={() => { setShowSettings(true); setMobileMenuOpen(false); }}
                                 className="w-full flex items-center gap-3 p-4 rounded-2xl text-[14px] font-medium text-zinc-600 bg-zinc-50"
                             >
-                                <Settings className="w-4 h-4" />
+                                <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={1.2} />
                                 <span>Settings</span>
                             </button>
                         </div>
@@ -579,13 +580,13 @@ export default function ChatInterface() {
                         {/* Toolbar */}
                         <header className="flex items-center h-14 px-4 md:px-8 border-b border-zinc-100 bg-white/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
                             <button className="md:hidden p-2 -ml-2 mr-3 text-zinc-400 hover:text-zinc-950" onClick={() => setMobileMenuOpen(true)}>
-                                <Menu className="w-5 h-5" />
+                                <HugeiconsIcon icon={Menu01Icon} size={16} strokeWidth={1.2} />
                             </button>
                             <div className="flex items-center gap-2 text-[13px]">
                                 <button onClick={() => setActiveAgentId(null)} className="text-zinc-400 hover:text-zinc-900 transition-colors font-medium">Hub</button>
-                                <ChevronRight className="w-3.5 h-3.5 text-zinc-300" />
+                                <HugeiconsIcon icon={ArrowRight01Icon} size={16} strokeWidth={1.2} className="text-zinc-300" />
                                 <div className="flex items-center gap-2 px-2 py-1 bg-zinc-50 rounded-lg">
-                                    <activeAgent.icon className="w-3 h-3 text-zinc-900" />
+                                    <HugeiconsIcon icon={activeAgent.icon} size={16} strokeWidth={1.2} className="text-zinc-900" />
                                     <span className="text-zinc-900 font-semibold tracking-tight">{activeAgent.name}</span>
                                 </div>
                             </div>
@@ -601,7 +602,7 @@ export default function ChatInterface() {
                                                 "w-6 h-6 rounded-lg flex items-center justify-center text-white transition-all shadow-sm",
                                                 message.role === "user" ? "bg-zinc-200" : "bg-zinc-900"
                                             )}>
-                                                {message.role === "assistant" ? <activeAgent.icon className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                                                {message.role === "assistant" ? <HugeiconsIcon icon={activeAgent.icon} size={16} strokeWidth={1.2} /> : <HugeiconsIcon icon={UserIcon} size={16} strokeWidth={1.2} />}
                                             </div>
                                             <span className="text-[12px] font-bold tracking-tight text-zinc-400 uppercase">
                                                 {message.role === "user" ? "You" : activeAgent.name}
@@ -673,7 +674,7 @@ export default function ChatInterface() {
                                             size="icon"
                                             className="w-9 h-9 rounded-xl bg-zinc-950 text-white shadow-lg shadow-zinc-200 transition-all hover:scale-105 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
                                         >
-                                            <ArrowUp className="w-4 h-4 stroke-[3px]" />
+                                            <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={1.2} />
                                         </Button>
                                     </div>
                                 </div>
@@ -686,7 +687,7 @@ export default function ChatInterface() {
                         <div className="w-full max-w-5xl space-y-16">
                             <div className="text-center space-y-5">
                                 <div className="inline-flex items-center justify-center w-11 h-11 rounded-[14px] bg-zinc-900 text-white mb-6 shadow-2xl shadow-zinc-200">
-                                    <Sparkles className="w-5 h-5" />
+                                    <HugeiconsIcon icon={MagicWand01Icon} size={16} strokeWidth={1.2} />
                                 </div>
                                 <h1 className="text-3xl md:text-[40px] font-semibold text-zinc-900 tracking-[-0.03em] leading-tight">
                                     Which agent do you want to use?
@@ -699,7 +700,7 @@ export default function ChatInterface() {
                                         onClick={() => setShowSettings(true)}
                                         className="h-11 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-2xl px-6 font-bold text-[13px] shadow-sm transition-all whitespace-nowrap"
                                     >
-                                        <Settings className="w-4 h-4 mr-2" />
+                                        <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={1.2} className="mr-2" />
                                         Manage Intelligence
                                     </Button>
                                 </div>
@@ -726,7 +727,7 @@ export default function ChatInterface() {
                                                 "w-10 h-10 rounded-xl flex items-center justify-center mb-6 transition-all duration-300",
                                                 agent.active ? "bg-zinc-50 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white group-hover:scale-110" : "bg-zinc-100 text-zinc-400"
                                             )}>
-                                                <agent.icon className="w-5 h-5" />
+                                                <HugeiconsIcon icon={agent.icon} size={16} strokeWidth={1.2} />
                                             </div>
                                             <h3 className="font-bold text-zinc-900 text-[16px] mb-2 tracking-tight leading-snug">{agent.name}</h3>
                                             <p className="text-zinc-400 text-[13px] leading-relaxed mb-6 line-clamp-3">{agent.description}</p>
@@ -736,7 +737,7 @@ export default function ChatInterface() {
                                                     {agent.active ? (
                                                         <div className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
                                                             <span className="text-zinc-900 font-bold uppercase tracking-wider text-[10px]">Start chat</span>
-                                                            <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
+                                                            <HugeiconsIcon icon={ArrowRight01Icon} size={12} strokeWidth={1.2} className="opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all text-zinc-900" />
                                                         </div>
                                                     ) : (
                                                         <span className="text-zinc-300 font-bold uppercase tracking-wider text-[10px] whitespace-nowrap">Coming soon</span>
@@ -753,7 +754,7 @@ export default function ChatInterface() {
                                                     }}
                                                     className="h-7 px-2 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap shrink-0"
                                                 >
-                                                    <Settings className="w-3 h-3 mr-1.5" />
+                                                    <HugeiconsIcon icon={Settings02Icon} size={16} strokeWidth={1.2} className="mr-1.5" />
                                                     Configure
                                                 </Button>
                                             </div>
@@ -779,7 +780,7 @@ export default function ChatInterface() {
                                 <p className="text-sm text-zinc-400 font-medium">Manage agents and specialized knowledge domains</p>
                             </div>
                             <button onClick={() => setShowSettings(false)} className="p-2.5 bg-zinc-50 text-zinc-400 hover:text-zinc-900 rounded-full transition-all hover:rotate-90">
-                                <X className="w-6 h-6" />
+                                <HugeiconsIcon icon={Cancel01Icon} size={16} strokeWidth={1.2} />
                             </button>
                         </div>
 
@@ -862,7 +863,7 @@ export default function ChatInterface() {
                                                             disabled={isCreatingSection || !newKbTitle.trim()}
                                                             className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 h-11 rounded-xl px-6 font-bold text-[13px] shrink-0 whitespace-nowrap"
                                                         >
-                                                            {isCreatingSection ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                                                            {isCreatingSection ? <HugeiconsIcon icon={Loading03Icon} size={16} strokeWidth={1.2} className="animate-spin mr-2" /> : <HugeiconsIcon icon={Add01Icon} size={16} strokeWidth={1.2} className="mr-2" />}
                                                             Add Section
                                                         </Button>
                                                     </div>
@@ -886,14 +887,14 @@ export default function ChatInterface() {
                                                 <div className="flex flex-col items-center justify-center p-0 text-center pointer-events-none">
                                                     {isUploading ? (
                                                         <>
-                                                            <Loader2 className="w-8 h-8 text-zinc-400 mb-3 animate-spin" />
+                                                            <HugeiconsIcon icon={Loading03Icon} size={32} strokeWidth={1.2} className="text-zinc-400 mb-3 animate-spin" />
                                                             <p className="text-[14px] font-bold text-zinc-800">Processing Document...</p>
                                                             <p className="text-[12px] text-zinc-500 mt-1">Chunking and embedding content</p>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 flex items-center justify-center mb-4 shadow-sm group-hover:scale-105 transition-transform">
-                                                                <Upload className="w-5 h-5 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
+                                                                <HugeiconsIcon icon={CloudUploadIcon} size={20} strokeWidth={1.2} className="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
                                                             </div>
                                                             <p className="text-[14px] font-bold text-zinc-800">Upload a Document (.pdf, .txt, .md)</p>
                                                             <p className="text-[13px] text-zinc-500 mt-1">Drag & drop or click to upload</p>
@@ -911,10 +912,7 @@ export default function ChatInterface() {
                                                             onClick={() => toggleSectionExpand(section.id)}
                                                         >
                                                             <div className="flex items-center gap-3 min-w-0">
-                                                                <ChevronDown className={cn(
-                                                                    "w-4 h-4 text-zinc-400 transition-transform shrink-0",
-                                                                    expandedSectionId === section.id && "rotate-180"
-                                                                )} />
+                                                                <HugeiconsIcon icon={ArrowDown01Icon} size={16} strokeWidth={1.2} className={cn("text-zinc-400 transition-transform shrink-0", expandedSectionId === section.id && "rotate-180")} />
                                                                 <div className="min-w-0">
                                                                     <p className="text-[14px] font-bold text-zinc-800 tracking-tight truncate">{section.title}</p>
                                                                     {section.description && (
@@ -936,9 +934,9 @@ export default function ChatInterface() {
                                                                     className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-8 w-8 p-0"
                                                                 >
                                                                     {isDeletingItemId === section.id ? (
-                                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-300" />
+                                                                        <HugeiconsIcon icon={Loading03Icon} size={14} strokeWidth={1.2} className="animate-spin text-zinc-300" />
                                                                     ) : (
-                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                        <HugeiconsIcon icon={Delete02Icon} size={14} strokeWidth={1.2} />
                                                                     )}
                                                                 </Button>
                                                             </div>
@@ -967,7 +965,7 @@ export default function ChatInterface() {
                                                                             disabled={!newEntryContent.trim() || isAddingEntry}
                                                                             className="bg-zinc-900 text-white h-9 rounded-lg px-5 text-[12px] font-bold shrink-0 whitespace-nowrap"
                                                                         >
-                                                                            {isAddingEntry ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
+                                                                            {isAddingEntry ? <HugeiconsIcon icon={Loading03Icon} size={16} strokeWidth={1.2} className="animate-spin mr-2" /> : <HugeiconsIcon icon={Add01Icon} size={16} strokeWidth={1.2} className="mr-2" />}
                                                                             Add Entry
                                                                         </Button>
                                                                     </div>
@@ -980,7 +978,7 @@ export default function ChatInterface() {
                                                                     </div>
                                                                 ) : sectionEntries.length === 0 ? (
                                                                     <div className="py-8 flex flex-col items-center text-center">
-                                                                        <FileText className="w-8 h-8 text-zinc-200 mb-3" />
+                                                                        <HugeiconsIcon icon={Note01Icon} size={32} strokeWidth={1.2} className="text-zinc-200 mb-3" />
                                                                         <p className="text-zinc-400 text-[13px] font-medium">No entries yet. Add your first knowledge chunk above.</p>
                                                                     </div>
                                                                 ) : (
@@ -1003,9 +1001,9 @@ export default function ChatInterface() {
                                                                                         className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 rounded-lg h-7 w-7 p-0 shrink-0"
                                                                                     >
                                                                                         {isDeletingItemId === entry.id ? (
-                                                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                                                            <HugeiconsIcon icon={Loading03Icon} size={12} strokeWidth={1.2} className="animate-spin" />
                                                                                         ) : (
-                                                                                            <Trash2 className="w-3 h-3" />
+                                                                                            <HugeiconsIcon icon={Delete02Icon} size={12} strokeWidth={1.2} />
                                                                                         )}
                                                                                     </Button>
                                                                                 </div>
@@ -1019,7 +1017,7 @@ export default function ChatInterface() {
                                                 ))}
                                                 {kbSections.length === 0 && (
                                                     <div className="py-12 border-2 border-dashed border-zinc-100 rounded-3xl flex flex-col items-center justify-center bg-zinc-50/50">
-                                                        <Sparkles className="w-8 h-8 text-zinc-200 mb-4" />
+                                                        <HugeiconsIcon icon={MagicWand01Icon} size={32} strokeWidth={1.2} className="text-zinc-200 mb-4" />
                                                         <p className="text-zinc-400 text-sm font-medium">No knowledge sections yet.</p>
                                                         <p className="text-zinc-300 text-[12px] mt-1">Add a section above to start building this agent&apos;s knowledge base.</p>
                                                     </div>
@@ -1030,7 +1028,7 @@ export default function ChatInterface() {
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                                         <div className="w-20 h-20 rounded-[28px] bg-zinc-50 flex items-center justify-center text-zinc-200 mb-4">
-                                            <User className="w-10 h-10" />
+                                            <HugeiconsIcon icon={UserIcon} size={40} strokeWidth={1.2} />
                                         </div>
                                         <h3 className="text-xl font-bold text-zinc-900">Select an Agent</h3>
                                         <p className="text-zinc-400 text-sm max-w-[280px]">Select an agent from the sidebar to manage their specialized knowledge domains.</p>
