@@ -105,6 +105,9 @@ export default function ChatInterface() {
     const [isAddingEntry, setIsAddingEntry] = useState(false);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [newEntrySource, setNewEntrySource] = useState("");
+    const [isVoiceActive, setIsVoiceActive] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const synthRef = useRef<SpeechSynthesis | null>(null);
 
     const [uploadState, uploadActions] = useFileUpload({
         accept: ".pdf,.txt,.md",
@@ -188,7 +191,81 @@ export default function ChatInterface() {
 
     useEffect(() => {
         fetchAgents();
-    }, []);
+        if (typeof window !== "undefined") {
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognitionRef.current = new SpeechRecognition();
+                recognitionRef.current.continuous = true;
+                recognitionRef.current.interimResults = true;
+
+                recognitionRef.current.onresult = (event: any) => {
+                    let interimTranscript = "";
+                    let finalTranscript = "";
+
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
+                    }
+
+                    if (finalTranscript) {
+                        setInput(prev => prev + (prev ? " " : "") + finalTranscript);
+                    }
+                };
+
+                recognitionRef.current.onend = () => {
+                    if (isVoiceActive) recognitionRef.current.start();
+                };
+            }
+            synthRef.current = window.speechSynthesis;
+        }
+    }, [isVoiceActive]);
+
+    const getNaturalVoice = () => {
+        if (!synthRef.current) return null;
+        const voices = synthRef.current.getVoices();
+        // Priority list for "natural" sounding voices
+        const priority = ["Samantha", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Microsoft Guy", "Daniel", "Karen"];
+        for (const name of priority) {
+            const found = voices.find(v => v.name.includes(name) && v.lang.startsWith("en"));
+            if (found) return found;
+        }
+        return voices.find(v => v.lang.startsWith("en")) || voices[0];
+    };
+
+    const toggleVoiceMode = () => {
+        if (isVoiceActive) {
+            recognitionRef.current?.stop();
+            setIsVoiceActive(false);
+            synthRef.current?.cancel();
+        } else {
+            // Stop any existing speech when user starts a new interaction
+            synthRef.current?.cancel();
+            setInput("");
+            recognitionRef.current?.start();
+            setIsVoiceActive(true);
+            showFeedback("Voice mode active. Listening...");
+        }
+    };
+
+    const speakText = (text: string) => {
+        if (!synthRef.current) return;
+        synthRef.current.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        const voice = getNaturalVoice();
+        if (voice) {
+            utterance.voice = voice;
+        }
+
+        utterance.rate = 1.05;
+        utterance.pitch = 1;
+
+        // Interrupt logic: If user starts speaking or clicks mic, synth is cancelled in toggleVoiceMode
+        synthRef.current.speak(utterance);
+    };
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -452,6 +529,9 @@ export default function ChatInterface() {
                         { role: "assistant", content: accumulated },
                     ]);
                 }
+                if (isVoiceActive && accumulated) {
+                    speakText(accumulated);
+                }
             }
         } catch {
             setMessages((prev) => [
@@ -660,11 +740,22 @@ export default function ChatInterface() {
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-zinc-900/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
                                     <div className="relative flex items-center gap-3 bg-zinc-50 rounded-2xl px-5 py-2 border border-zinc-200 focus-within:border-zinc-900/20 focus-within:bg-white transition-all shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+                                        <button
+                                            type="button"
+                                            onClick={toggleVoiceMode}
+                                            className={cn(
+                                                "relative w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
+                                                isVoiceActive ? "bg-red-50 text-red-600 shadow-sm" : "bg-white text-zinc-400 hover:text-zinc-900 shadow-sm border border-zinc-100"
+                                            )}
+                                        >
+                                            {isVoiceActive && <span className="absolute inset-0 rounded-xl bg-red-400/20 animate-voice-pulse" />}
+                                            <HugeiconsIcon icon={isVoiceActive ? Loading03Icon : MagicWand01Icon} size={16} strokeWidth={1.2} className={cn(isVoiceActive && "animate-spin-slow")} />
+                                        </button>
                                         <Input
                                             ref={inputRef}
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
-                                            placeholder={`Ask ${activeAgent.name} anything...`}
+                                            placeholder={isVoiceActive ? "Listening..." : `Ask ${activeAgent.name} anything...`}
                                             className="bg-transparent border-none focus-visible:ring-0 h-10 text-[15px] text-zinc-900 placeholder:text-zinc-400 font-medium"
                                             disabled={isLoading}
                                         />

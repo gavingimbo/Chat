@@ -58,25 +58,32 @@
 }
 
 :root {
-  --background: #fafafa; /* Zinc 50 */
-  --foreground: #0a0a0a; /* Zinc 950 */
+  --background: #fafafa;
+  /* Zinc 50 */
+  --foreground: #0a0a0a;
+  /* Zinc 950 */
   --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #ffffff;
   --popover-foreground: #0a0a0a;
-  --primary: #18181b; /* Zinc 900 */
+  --primary: #18181b;
+  /* Zinc 900 */
   --primary-foreground: #fafafa;
-  --secondary: #f4f4f5; /* Zinc 100 */
+  --secondary: #f4f4f5;
+  /* Zinc 100 */
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
-  --muted-foreground: #71717a; /* Zinc 500 */
+  --muted-foreground: #71717a;
+  /* Zinc 500 */
   --accent: #f4f4f5;
   --accent-foreground: #18181b;
   --destructive: #dc2626;
   --destructive-foreground: #fafafa;
-  --border: #e4e4e7; /* Zinc 200 */
+  --border: #e4e4e7;
+  /* Zinc 200 */
   --input: #e4e4e7;
-  --ring: #d4d4d8; /* Zinc 300 */
+  --ring: #d4d4d8;
+  /* Zinc 300 */
   --chart-1: #18181b;
   --chart-2: #3f3f46;
   --chart-3: #71717a;
@@ -102,25 +109,30 @@
 }
 
 .dark {
-  --background: #09090b; /* Zinc 950 slightly adjusted */
+  --background: #09090b;
+  /* Zinc 950 slightly adjusted */
   --foreground: #fafafa;
-  --card: #18181b; /* Zinc 900 */
+  --card: #18181b;
+  /* Zinc 900 */
   --card-foreground: #fafafa;
   --popover: #18181b;
   --popover-foreground: #fafafa;
   --primary: #fafafa;
   --primary-foreground: #18181b;
-  --secondary: #27272a; /* Zinc 800 */
+  --secondary: #27272a;
+  /* Zinc 800 */
   --secondary-foreground: #fafafa;
   --muted: #27272a;
-  --muted-foreground: #a1a1aa; /* Zinc 400 */
+  --muted-foreground: #a1a1aa;
+  /* Zinc 400 */
   --accent: #27272a;
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
   --destructive-foreground: #fafafa;
   --border: #27272a;
   --input: #27272a;
-  --ring: #3f3f46; /* Zinc 700 */
+  --ring: #3f3f46;
+  /* Zinc 700 */
   --chart-1: #fafafa;
   --chart-2: #d4d4d8;
   --chart-3: #a1a1aa;
@@ -148,7 +160,43 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@keyframes voice-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 0.2;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+
+.animate-voice-pulse {
+  animation: voice-pulse 2s infinite ease-in-out;
+}
+
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
