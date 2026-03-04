@@ -111,6 +111,8 @@ export default function ChatInterface() {
     const synthRef = useRef<SpeechSynthesis | null>(null);
     const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const voiceInputRef = useRef<string>("");
+    const speechQueueRef = useRef<string[]>([]);
+    const isSpeakingRef = useRef<boolean>(false);
 
     const [uploadState, uploadActions] = useFileUpload({
         accept: ".pdf,.txt,.md",
@@ -228,96 +230,72 @@ export default function ChatInterface() {
         return voices.find(v => v.lang.startsWith("en")) || voices[0];
     };
 
-    // Auto-submit via voice after silence
+    // Consolidate into handleSubmit for stability
     const submitVoiceInput = (text: string) => {
-        if (!text.trim() || isLoading || !activeAgentId) return;
         setVoiceState("thinking");
-        // Stop listening while processing
         recognitionRef.current?.stop();
+        handleSubmit(undefined, text);
+    };
 
-        // Simulate form submit with the voice text
-        const userMessage: Message = { role: "user", content: text };
-        setMessages(prev => [...prev, userMessage]);
-        setInput("");
-        voiceInputRef.current = "";
-        setIsLoading(true);
-        setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+    const queueSpeech = (text: string) => {
+        if (!text || !isVoiceActive) return;
+        speechQueueRef.current.push(text);
+        processSpeechQueue();
+    };
 
-        (async () => {
-            try {
-                const response = await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        messages: [...messages, userMessage],
-                        agentId: activeAgentId
-                    }),
-                });
+    const processSpeechQueue = () => {
+        if (isSpeakingRef.current || speechQueueRef.current.length === 0 || !isVoiceActive) return;
 
-                if (!response.ok) throw new Error("Network error");
-                const reader = response.body?.getReader();
-                const decoder = new TextDecoder();
-                let accumulated = "";
-
-                if (reader) {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        accumulated += decoder.decode(value, { stream: true });
-                        setMessages(prev => [
-                            ...prev.slice(0, -1),
-                            { role: "assistant", content: accumulated },
-                        ]);
-                    }
-                }
-
-                // Speak the full response
-                if (accumulated) {
-                    speakText(accumulated);
-                } else {
-                    // No response, resume listening
-                    resumeListening();
-                }
-            } catch {
-                setMessages(prev => [
-                    ...prev.slice(0, -1),
-                    { role: "assistant", content: "Something went wrong. Please try again." },
-                ]);
-                resumeListening();
-            } finally {
-                setIsLoading(false);
-            }
-        })();
+        const nextText = speechQueueRef.current.shift();
+        if (nextText) {
+            speakText(nextText);
+        }
     };
 
     const resumeListening = () => {
         if (!isVoiceActive) return;
+        speechQueueRef.current = [];
+        isSpeakingRef.current = false;
         voiceInputRef.current = "";
         setInput("");
         setVoiceState("listening");
         try {
             recognitionRef.current?.start();
         } catch (e) {
-            // Already started
+            // Already started or busy
         }
     };
 
     const speakText = (text: string) => {
         if (!synthRef.current) { resumeListening(); return; }
-        synthRef.current.cancel();
+
+        // If not in conversational loop, clear everything and speak (manual trig)
+        if (voiceState !== "speaking" && voiceState !== "thinking") {
+            synthRef.current.cancel();
+            speechQueueRef.current = [];
+        }
+
         setVoiceState("speaking");
+        isSpeakingRef.current = true;
 
         const utterance = new SpeechSynthesisUtterance(text);
         const voice = getNaturalVoice();
         if (voice) utterance.voice = voice;
-        utterance.rate = 1.0;
+        utterance.rate = 1.05;
         utterance.pitch = 1;
 
-        // When done speaking, resume listening automatically
         utterance.onend = () => {
-            resumeListening();
+            isSpeakingRef.current = false;
+            if (speechQueueRef.current.length > 0) {
+                processSpeechQueue();
+            } else {
+                resumeListening();
+            }
         };
-        utterance.onerror = () => {
+
+        utterance.onerror = (e) => {
+            console.error("[Voice] TTS Error:", e);
+            isSpeakingRef.current = false;
             resumeListening();
         };
 
@@ -384,6 +362,8 @@ export default function ChatInterface() {
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         recognitionRef.current?.stop();
         synthRef.current?.cancel();
+        speechQueueRef.current = [];
+        isSpeakingRef.current = false;
         setIsVoiceActive(false);
         setVoiceState("idle");
         voiceInputRef.current = "";
@@ -625,56 +605,83 @@ export default function ChatInterface() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!input.trim() || isLoading) return;
+    const handleSubmit = async (e?: React.FormEvent, manualInput?: string) => {
+        if (e) e.preventDefault();
+        const textToSubmit = manualInput || input;
+        if (!textToSubmit.trim() || isLoading || !activeAgentId) return;
 
-        const userMessage: Message = { role: "user", content: input };
+        const userMessage: Message = { role: "user", content: textToSubmit };
         setMessages((prev) => [...prev, userMessage]);
         setInput("");
         setIsLoading(true);
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-        try {
-            const response = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    messages: [...messages, userMessage],
-                    agentId: activeAgentId
-                }),
-            });
+        // Track speech queue progress
+        let lastSpokenIndex = 0;
+        let streamedText = "";
 
-            if (!response.ok) throw new Error("Network error");
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulated = "";
+        const runChat = async (retryCount = 0) => {
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        messages: [...messages, userMessage],
+                        agentId: activeAgentId
+                    }),
+                });
 
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    accumulated += decoder.decode(value, { stream: true });
-                    setMessages((prev) => [
-                        ...prev.slice(0, -1),
-                        { role: "assistant", content: accumulated },
-                    ]);
+                if (!response.ok) {
+                    if (retryCount < 2) return runChat(retryCount + 1);
+                    throw new Error("Network error");
                 }
-                // Voice mode auto-speak is handled in submitVoiceInput
-                // This path is for manual text submit; still speak if voice is on
-                if (isVoiceActive && accumulated) {
-                    speakText(accumulated);
+
+                const reader = response.body?.getReader();
+                const decoder = new TextDecoder();
+
+                if (reader) {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        const chunk = decoder.decode(value, { stream: true });
+                        streamedText += chunk;
+
+                        setMessages((prev) => [
+                            ...prev.slice(0, -1),
+                            { role: "assistant", content: streamedText },
+                        ]);
+
+                        // Support streaming TTS for typing mode too if voice is active
+                        if (isVoiceActive) {
+                            const speakableParts = streamedText.substring(lastSpokenIndex).match(/[^.!?]+[.!?]+/g);
+                            if (speakableParts) {
+                                for (const part of speakableParts) {
+                                    queueSpeech(part.trim());
+                                    lastSpokenIndex += part.length;
+                                }
+                            }
+                        }
+                    }
+
+                    // Speak remainder
+                    if (isVoiceActive) {
+                        const remaining = streamedText.substring(lastSpokenIndex).trim();
+                        if (remaining) queueSpeech(remaining);
+                    }
                 }
+            } catch (error) {
+                console.error("[Chat] Error:", error);
+                setMessages((prev) => [
+                    ...prev.slice(0, -1),
+                    { role: "assistant", content: "I'm sorry, I encountered an error. Please try again." },
+                ]);
+            } finally {
+                setIsLoading(false);
+                inputRef.current?.focus();
             }
-        } catch {
-            setMessages((prev) => [
-                ...prev.slice(0, -1),
-                { role: "assistant", content: "Something went wrong. Please try again." },
-            ]);
-        } finally {
-            setIsLoading(false);
-            inputRef.current?.focus();
-        }
+        };
+
+        runChat();
     };
 
     return (

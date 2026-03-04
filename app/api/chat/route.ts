@@ -10,20 +10,20 @@ export async function POST(req: NextRequest) {
         const lastMessage = messages[messages.length - 1].content;
         const agentSlug = agentId || "privacy";
 
-        // Fetch agent specific instructions from Supabase
-        const { data: agent, error: agentError } = await supabaseAdmin
-            .from("agents")
-            .select("name, instruction")
-            .eq("slug", agentSlug)
-            .single();
+        // Run agent fetch and RAG search in parallel
+        const [agentResult, context] = await Promise.all([
+            supabaseAdmin.from("agents").select("name, instruction").eq("slug", agentSlug).single(),
+            getRelevantContext(lastMessage, agentSlug)
+        ]);
+
+        const agent = agentResult.data;
+        const agentError = agentResult.error;
 
         if (agentError) {
-            console.error("Error fetching agent:", agentError);
+            console.error("[Chat API] Agent fetch error:", agentError);
         }
 
-        // Get context from documents using vector search
-        const context = await getRelevantContext(lastMessage, agentSlug);
-        console.log(`[RAG Debug] Agent: ${agentSlug}, Query: "${lastMessage.substring(0, 80)}", Context length: ${context.length}, Preview: "${context.substring(0, 200)}"`);
+        console.log(`[Chat API] Agent: ${agentSlug}, Context length: ${context.length}`);
 
         const formattedHistory = messages.map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n\n");
 
