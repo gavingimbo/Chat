@@ -683,7 +683,7 @@ export default function ChatInterface() {
                     </>
                 ) : (
                     /* Home Selection View */
-                    <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-[#FAFAFA]/30">
+                    <div className="flex-1 flex flex-col items-center justify-start md:justify-center px-4 md:px-8 py-12 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-[#FAFAFA]/30 overflow-y-auto">
                         <div className="w-full max-w-5xl space-y-16">
                             <div className="text-center space-y-5">
                                 <div className="inline-flex items-center justify-center w-11 h-11 rounded-[14px] bg-zinc-900 text-white mb-6 shadow-2xl shadow-zinc-200">
@@ -771,8 +771,8 @@ export default function ChatInterface() {
 
             {/* Settings Modal */}
             {showSettings && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={() => setShowSettings(false)} />
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-md animate-in fade-in duration-500" onClick={() => setShowSettings(false)} />
                     <div className="relative w-full max-w-5xl max-h-[85vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
                         <div className="flex items-center justify-between p-8 border-b border-zinc-100 shrink-0">
                             <div>
