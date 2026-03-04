@@ -20,7 +20,7 @@ Output rules:
 6. Keep language minimal and precise. Executive-grade brevity.`;
 
 export const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
+  model: "gemini-2.5-flash",
 });
 
 export const embeddingModel = genAI.getGenerativeModel({
