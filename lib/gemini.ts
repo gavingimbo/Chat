@@ -1,6 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY || "";
+if (!apiKey) {
+  console.warn("[Gemini] WARNING: GEMINI_API_KEY is not set. Chat will not work.");
+}
 export const genAI = new GoogleGenerativeAI(apiKey);
 
 export const COMMON_INSTRUCTIONS = `
@@ -17,7 +20,7 @@ Output rules:
 6. Keep language minimal and precise. Executive-grade brevity.`;
 
 export const model = genAI.getGenerativeModel({
-  model: "models/gemini-flash-latest",
+  model: "gemini-2.0-flash",
 });
 
 export const embeddingModel = genAI.getGenerativeModel({
