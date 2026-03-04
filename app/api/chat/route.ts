@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
         // Initialize model with dynamic system instructions for this specific agent
         const dynamicModel = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.1-flash-lite-preview",
             systemInstruction: `${agent?.instruction || "You are a helpful assistant."}\n${COMMON_INSTRUCTIONS}`,
         });
 
