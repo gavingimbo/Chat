@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
         // Build the prompt (same pipeline as /api/chat)
         const dynamicModel = genAI.getGenerativeModel({
-            model: "gemini-3.1-flash-lite-preview",
+            model: "gemini-3-flash-preview",
             systemInstruction: `${agent?.instruction || "You are a helpful assistant."}\n${COMMON_INSTRUCTIONS}\n\nIMPORTANT: You are responding via WhatsApp. Keep responses concise and well-formatted for mobile reading. Use short paragraphs. Avoid complex markdown tables. Use bullet points and bold text sparingly.`,
         });
 
