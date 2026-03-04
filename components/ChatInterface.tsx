@@ -106,8 +106,11 @@ export default function ChatInterface() {
     const [newEntryContent, setNewEntryContent] = useState("");
     const [newEntrySource, setNewEntrySource] = useState("");
     const [isVoiceActive, setIsVoiceActive] = useState(false);
+    const [voiceState, setVoiceState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
     const recognitionRef = useRef<any>(null);
     const synthRef = useRef<SpeechSynthesis | null>(null);
+    const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const voiceInputRef = useRef<string>("");
 
     const [uploadState, uploadActions] = useFileUpload({
         accept: ".pdf,.txt,.md",
@@ -192,42 +195,32 @@ export default function ChatInterface() {
     useEffect(() => {
         fetchAgents();
         if (typeof window !== "undefined") {
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                recognitionRef.current = new SpeechRecognition();
-                recognitionRef.current.continuous = true;
-                recognitionRef.current.interimResults = true;
-
-                recognitionRef.current.onresult = (event: any) => {
-                    let interimTranscript = "";
-                    let finalTranscript = "";
-
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            finalTranscript += event.results[i][0].transcript;
-                        } else {
-                            interimTranscript += event.results[i][0].transcript;
-                        }
-                    }
-
-                    if (finalTranscript) {
-                        setInput(prev => prev + (prev ? " " : "") + finalTranscript);
-                    }
-                };
-
-                recognitionRef.current.onend = () => {
-                    if (isVoiceActive) recognitionRef.current.start();
-                };
-            }
             synthRef.current = window.speechSynthesis;
+            // Pre-load voices (some browsers load async)
+            synthRef.current.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => synthRef.current?.getVoices();
         }
-    }, [isVoiceActive]);
+    }, []);
+
+    // Initialize speech recognition separately so it doesn't re-create on every state change
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) return;
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+        recognitionRef.current = recognition;
+
+        return () => { recognition.abort(); };
+    }, []);
 
     const getNaturalVoice = () => {
         if (!synthRef.current) return null;
         const voices = synthRef.current.getVoices();
-        // Priority list for "natural" sounding voices
-        const priority = ["Samantha", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Microsoft Guy", "Daniel", "Karen"];
+        const priority = ["Samantha", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Daniel", "Karen", "Moira"];
         for (const name of priority) {
             const found = voices.find(v => v.name.includes(name) && v.lang.startsWith("en"));
             if (found) return found;
@@ -235,36 +228,174 @@ export default function ChatInterface() {
         return voices.find(v => v.lang.startsWith("en")) || voices[0];
     };
 
-    const toggleVoiceMode = () => {
-        if (isVoiceActive) {
-            recognitionRef.current?.stop();
-            setIsVoiceActive(false);
-            synthRef.current?.cancel();
-        } else {
-            // Stop any existing speech when user starts a new interaction
-            synthRef.current?.cancel();
-            setInput("");
+    // Auto-submit via voice after silence
+    const submitVoiceInput = (text: string) => {
+        if (!text.trim() || isLoading || !activeAgentId) return;
+        setVoiceState("thinking");
+        // Stop listening while processing
+        recognitionRef.current?.stop();
+
+        // Simulate form submit with the voice text
+        const userMessage: Message = { role: "user", content: text };
+        setMessages(prev => [...prev, userMessage]);
+        setInput("");
+        voiceInputRef.current = "";
+        setIsLoading(true);
+        setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+        (async () => {
+            try {
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        messages: [...messages, userMessage],
+                        agentId: activeAgentId
+                    }),
+                });
+
+                if (!response.ok) throw new Error("Network error");
+                const reader = response.body?.getReader();
+                const decoder = new TextDecoder();
+                let accumulated = "";
+
+                if (reader) {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        accumulated += decoder.decode(value, { stream: true });
+                        setMessages(prev => [
+                            ...prev.slice(0, -1),
+                            { role: "assistant", content: accumulated },
+                        ]);
+                    }
+                }
+
+                // Speak the full response
+                if (accumulated) {
+                    speakText(accumulated);
+                } else {
+                    // No response, resume listening
+                    resumeListening();
+                }
+            } catch {
+                setMessages(prev => [
+                    ...prev.slice(0, -1),
+                    { role: "assistant", content: "Something went wrong. Please try again." },
+                ]);
+                resumeListening();
+            } finally {
+                setIsLoading(false);
+            }
+        })();
+    };
+
+    const resumeListening = () => {
+        if (!isVoiceActive) return;
+        voiceInputRef.current = "";
+        setInput("");
+        setVoiceState("listening");
+        try {
             recognitionRef.current?.start();
-            setIsVoiceActive(true);
-            showFeedback("Voice mode active. Listening...");
+        } catch (e) {
+            // Already started
         }
     };
 
     const speakText = (text: string) => {
-        if (!synthRef.current) return;
+        if (!synthRef.current) { resumeListening(); return; }
         synthRef.current.cancel();
+        setVoiceState("speaking");
+
         const utterance = new SpeechSynthesisUtterance(text);
-
         const voice = getNaturalVoice();
-        if (voice) {
-            utterance.voice = voice;
-        }
-
-        utterance.rate = 1.05;
+        if (voice) utterance.voice = voice;
+        utterance.rate = 1.0;
         utterance.pitch = 1;
 
-        // Interrupt logic: If user starts speaking or clicks mic, synth is cancelled in toggleVoiceMode
+        // When done speaking, resume listening automatically
+        utterance.onend = () => {
+            resumeListening();
+        };
+        utterance.onerror = () => {
+            resumeListening();
+        };
+
         synthRef.current.speak(utterance);
+    };
+
+    const startVoiceConversation = () => {
+        if (!recognitionRef.current) {
+            showError("Speech recognition is not supported in your browser.");
+            return;
+        }
+        synthRef.current?.cancel();
+        setIsVoiceActive(true);
+        setVoiceState("listening");
+        voiceInputRef.current = "";
+        setInput("");
+
+        const recognition = recognitionRef.current;
+
+        recognition.onresult = (event: any) => {
+            let finalTranscript = "";
+            let interimTranscript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            // Show interim text in the input
+            if (interimTranscript) {
+                setInput(voiceInputRef.current + (voiceInputRef.current ? " " : "") + interimTranscript);
+            }
+
+            if (finalTranscript) {
+                voiceInputRef.current += (voiceInputRef.current ? " " : "") + finalTranscript;
+                setInput(voiceInputRef.current);
+
+                // Reset silence timer on every final transcript
+                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                silenceTimerRef.current = setTimeout(() => {
+                    // Auto-submit after 1.5s of silence
+                    if (voiceInputRef.current.trim()) {
+                        submitVoiceInput(voiceInputRef.current);
+                    }
+                }, 1500);
+            }
+        };
+
+        recognition.onend = () => {
+            // Only restart if we're in listening mode (not thinking/speaking)
+            if (isVoiceActive && voiceState === "listening") {
+                try { recognition.start(); } catch (e) { /* already started */ }
+            }
+        };
+
+        try { recognition.start(); } catch (e) { /* already started */ }
+        showFeedback("Voice conversation started. I'm listening...");
+    };
+
+    const stopVoiceConversation = () => {
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        recognitionRef.current?.stop();
+        synthRef.current?.cancel();
+        setIsVoiceActive(false);
+        setVoiceState("idle");
+        voiceInputRef.current = "";
+        setInput("");
+    };
+
+    const toggleVoiceMode = () => {
+        if (isVoiceActive) {
+            stopVoiceConversation();
+        } else {
+            startVoiceConversation();
+        }
     };
 
     useEffect(() => {
@@ -529,6 +660,8 @@ export default function ChatInterface() {
                         { role: "assistant", content: accumulated },
                     ]);
                 }
+                // Voice mode auto-speak is handled in submitVoiceInput
+                // This path is for manual text submit; still speak if voice is on
                 if (isVoiceActive && accumulated) {
                     speakText(accumulated);
                 }
@@ -745,17 +878,31 @@ export default function ChatInterface() {
                                             onClick={toggleVoiceMode}
                                             className={cn(
                                                 "relative w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
-                                                isVoiceActive ? "bg-red-50 text-red-600 shadow-sm" : "bg-white text-zinc-400 hover:text-zinc-900 shadow-sm border border-zinc-100"
+                                                voiceState === "listening" ? "bg-emerald-50 text-emerald-600 shadow-sm" :
+                                                    voiceState === "thinking" ? "bg-amber-50 text-amber-600 shadow-sm" :
+                                                        voiceState === "speaking" ? "bg-blue-50 text-blue-600 shadow-sm" :
+                                                            isVoiceActive ? "bg-red-50 text-red-600 shadow-sm" :
+                                                                "bg-white text-zinc-400 hover:text-zinc-900 shadow-sm border border-zinc-100"
                                             )}
                                         >
-                                            {isVoiceActive && <span className="absolute inset-0 rounded-xl bg-red-400/20 animate-voice-pulse" />}
+                                            {isVoiceActive && <span className={cn(
+                                                "absolute inset-0 rounded-xl animate-voice-pulse",
+                                                voiceState === "listening" ? "bg-emerald-400/20" :
+                                                    voiceState === "thinking" ? "bg-amber-400/20" :
+                                                        voiceState === "speaking" ? "bg-blue-400/20" : "bg-red-400/20"
+                                            )} />}
                                             <HugeiconsIcon icon={isVoiceActive ? Loading03Icon : MagicWand01Icon} size={16} strokeWidth={1.2} className={cn(isVoiceActive && "animate-spin-slow")} />
                                         </button>
                                         <Input
                                             ref={inputRef}
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
-                                            placeholder={isVoiceActive ? "Listening..." : `Ask ${activeAgent.name} anything...`}
+                                            placeholder={
+                                                voiceState === "listening" ? "Listening..." :
+                                                    voiceState === "thinking" ? "Thinking..." :
+                                                        voiceState === "speaking" ? "Speaking..." :
+                                                            `Ask ${activeAgent.name} anything...`
+                                            }
                                             className="bg-transparent border-none focus-visible:ring-0 h-10 text-[15px] text-zinc-900 placeholder:text-zinc-400 font-medium"
                                             disabled={isLoading}
                                         />
