@@ -105,14 +105,6 @@ export default function ChatInterface() {
     const [isAddingEntry, setIsAddingEntry] = useState(false);
     const [newEntryContent, setNewEntryContent] = useState("");
     const [newEntrySource, setNewEntrySource] = useState("");
-    const [isVoiceActive, setIsVoiceActive] = useState(false);
-    const [voiceState, setVoiceState] = useState<"idle" | "listening" | "thinking" | "speaking">("idle");
-    const recognitionRef = useRef<any>(null);
-    const synthRef = useRef<SpeechSynthesis | null>(null);
-    const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const voiceInputRef = useRef<string>("");
-    const speechQueueRef = useRef<string[]>([]);
-    const isSpeakingRef = useRef<boolean>(false);
 
     const [uploadState, uploadActions] = useFileUpload({
         accept: ".pdf,.txt,.md",
@@ -196,187 +188,9 @@ export default function ChatInterface() {
 
     useEffect(() => {
         fetchAgents();
-        if (typeof window !== "undefined") {
-            synthRef.current = window.speechSynthesis;
-            // Pre-load voices (some browsers load async)
-            synthRef.current.getVoices();
-            window.speechSynthesis.onvoiceschanged = () => synthRef.current?.getVoices();
-        }
     }, []);
 
-    // Initialize speech recognition separately so it doesn't re-create on every state change
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-        recognitionRef.current = recognition;
-
-        return () => { recognition.abort(); };
-    }, []);
-
-    const getNaturalVoice = () => {
-        if (!synthRef.current) return null;
-        const voices = synthRef.current.getVoices();
-        const priority = ["Samantha", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Daniel", "Karen", "Moira"];
-        for (const name of priority) {
-            const found = voices.find(v => v.name.includes(name) && v.lang.startsWith("en"));
-            if (found) return found;
-        }
-        return voices.find(v => v.lang.startsWith("en")) || voices[0];
-    };
-
-    // Consolidate into handleSubmit for stability
-    const submitVoiceInput = (text: string) => {
-        setVoiceState("thinking");
-        recognitionRef.current?.stop();
-        handleSubmit(undefined, text);
-    };
-
-    const queueSpeech = (text: string) => {
-        if (!text || !isVoiceActive) return;
-        speechQueueRef.current.push(text);
-        processSpeechQueue();
-    };
-
-    const processSpeechQueue = () => {
-        if (isSpeakingRef.current || speechQueueRef.current.length === 0 || !isVoiceActive) return;
-
-        const nextText = speechQueueRef.current.shift();
-        if (nextText) {
-            speakText(nextText);
-        }
-    };
-
-    const resumeListening = () => {
-        if (!isVoiceActive) return;
-        speechQueueRef.current = [];
-        isSpeakingRef.current = false;
-        voiceInputRef.current = "";
-        setInput("");
-        setVoiceState("listening");
-        try {
-            recognitionRef.current?.start();
-        } catch (e) {
-            // Already started or busy
-        }
-    };
-
-    const speakText = (text: string) => {
-        if (!synthRef.current) { resumeListening(); return; }
-
-        // If not in conversational loop, clear everything and speak (manual trig)
-        if (voiceState !== "speaking" && voiceState !== "thinking") {
-            synthRef.current.cancel();
-            speechQueueRef.current = [];
-        }
-
-        setVoiceState("speaking");
-        isSpeakingRef.current = true;
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        const voice = getNaturalVoice();
-        if (voice) utterance.voice = voice;
-        utterance.rate = 1.05;
-        utterance.pitch = 1;
-
-        utterance.onend = () => {
-            isSpeakingRef.current = false;
-            if (speechQueueRef.current.length > 0) {
-                processSpeechQueue();
-            } else {
-                resumeListening();
-            }
-        };
-
-        utterance.onerror = (e) => {
-            console.error("[Voice] TTS Error:", e);
-            isSpeakingRef.current = false;
-            resumeListening();
-        };
-
-        synthRef.current.speak(utterance);
-    };
-
-    const startVoiceConversation = () => {
-        if (!recognitionRef.current) {
-            showError("Speech recognition is not supported in your browser.");
-            return;
-        }
-        synthRef.current?.cancel();
-        setIsVoiceActive(true);
-        setVoiceState("listening");
-        voiceInputRef.current = "";
-        setInput("");
-
-        const recognition = recognitionRef.current;
-
-        recognition.onresult = (event: any) => {
-            let finalTranscript = "";
-            let interimTranscript = "";
-
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
-            }
-
-            // Show interim text in the input
-            if (interimTranscript) {
-                setInput(voiceInputRef.current + (voiceInputRef.current ? " " : "") + interimTranscript);
-            }
-
-            if (finalTranscript) {
-                voiceInputRef.current += (voiceInputRef.current ? " " : "") + finalTranscript;
-                setInput(voiceInputRef.current);
-
-                // Reset silence timer on every final transcript
-                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-                silenceTimerRef.current = setTimeout(() => {
-                    // Auto-submit after 1.5s of silence
-                    if (voiceInputRef.current.trim()) {
-                        submitVoiceInput(voiceInputRef.current);
-                    }
-                }, 1500);
-            }
-        };
-
-        recognition.onend = () => {
-            // Only restart if we're in listening mode (not thinking/speaking)
-            if (isVoiceActive && voiceState === "listening") {
-                try { recognition.start(); } catch (e) { /* already started */ }
-            }
-        };
-
-        try { recognition.start(); } catch (e) { /* already started */ }
-        showFeedback("Voice conversation started. I'm listening...");
-    };
-
-    const stopVoiceConversation = () => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        recognitionRef.current?.stop();
-        synthRef.current?.cancel();
-        speechQueueRef.current = [];
-        isSpeakingRef.current = false;
-        setIsVoiceActive(false);
-        setVoiceState("idle");
-        voiceInputRef.current = "";
-        setInput("");
-    };
-
-    const toggleVoiceMode = () => {
-        if (isVoiceActive) {
-            stopVoiceConversation();
-        } else {
-            startVoiceConversation();
-        }
-    };
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -616,8 +430,6 @@ export default function ChatInterface() {
         setIsLoading(true);
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-        // Track speech queue progress
-        let lastSpokenIndex = 0;
         let streamedText = "";
 
         const runChat = async (retryCount = 0) => {
@@ -650,23 +462,6 @@ export default function ChatInterface() {
                             ...prev.slice(0, -1),
                             { role: "assistant", content: streamedText },
                         ]);
-
-                        // Support streaming TTS for typing mode too if voice is active
-                        if (isVoiceActive) {
-                            const speakableParts = streamedText.substring(lastSpokenIndex).match(/[^.!?]+[.!?]+/g);
-                            if (speakableParts) {
-                                for (const part of speakableParts) {
-                                    queueSpeech(part.trim());
-                                    lastSpokenIndex += part.length;
-                                }
-                            }
-                        }
-                    }
-
-                    // Speak remainder
-                    if (isVoiceActive) {
-                        const remaining = streamedText.substring(lastSpokenIndex).trim();
-                        if (remaining) queueSpeech(remaining);
                     }
                 }
             } catch (error) {
@@ -880,36 +675,16 @@ export default function ChatInterface() {
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-zinc-900/5 rounded-2xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
                                     <div className="relative flex items-center gap-3 bg-zinc-50 rounded-2xl px-5 py-2 border border-zinc-200 focus-within:border-zinc-900/20 focus-within:bg-white transition-all shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                                        <button
-                                            type="button"
-                                            onClick={toggleVoiceMode}
-                                            className={cn(
-                                                "relative w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
-                                                voiceState === "listening" ? "bg-emerald-50 text-emerald-600 shadow-sm" :
-                                                    voiceState === "thinking" ? "bg-amber-50 text-amber-600 shadow-sm" :
-                                                        voiceState === "speaking" ? "bg-blue-50 text-blue-600 shadow-sm" :
-                                                            isVoiceActive ? "bg-red-50 text-red-600 shadow-sm" :
-                                                                "bg-white text-zinc-400 hover:text-zinc-900 shadow-sm border border-zinc-100"
-                                            )}
+                                        <div
+                                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0 bg-white text-zinc-400 shadow-sm border border-zinc-100"
                                         >
-                                            {isVoiceActive && <span className={cn(
-                                                "absolute inset-0 rounded-xl animate-voice-pulse",
-                                                voiceState === "listening" ? "bg-emerald-400/20" :
-                                                    voiceState === "thinking" ? "bg-amber-400/20" :
-                                                        voiceState === "speaking" ? "bg-blue-400/20" : "bg-red-400/20"
-                                            )} />}
-                                            <HugeiconsIcon icon={isVoiceActive ? Loading03Icon : MagicWand01Icon} size={16} strokeWidth={1.2} className={cn(isVoiceActive && "animate-spin-slow")} />
-                                        </button>
+                                            <HugeiconsIcon icon={MagicWand01Icon} size={16} strokeWidth={1.2} />
+                                        </div>
                                         <Input
                                             ref={inputRef}
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
-                                            placeholder={
-                                                voiceState === "listening" ? "Listening..." :
-                                                    voiceState === "thinking" ? "Thinking..." :
-                                                        voiceState === "speaking" ? "Speaking..." :
-                                                            `Ask ${activeAgent.name} anything...`
-                                            }
+                                            placeholder={`Ask ${activeAgent.name} anything...`}
                                             className="bg-transparent border-none focus-visible:ring-0 h-10 text-[15px] text-zinc-900 placeholder:text-zinc-400 font-medium"
                                             disabled={isLoading}
                                         />
